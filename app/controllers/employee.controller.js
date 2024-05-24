@@ -6,9 +6,12 @@ const jwtSecret = 'mysecretKey';
 
 //Phương thức đăng ký cho người tìm việc mới
 exports.signUp = async (req, res, next) => {
-    const { name, email, password, phone, address, otp } = req.body;
-    if (!name) {
+    const { firstName, lastName, email, password, phone, address, otp } = req.body;
+    if (!firstName) {
         return next(new ApiError(400, 'Name is required'));
+    }
+    if (!lastName) {
+        return next(new ApiError(400, 'Last name is required'));
     }
     if (!email) {
         return next(new ApiError(400, 'Email is required'));
