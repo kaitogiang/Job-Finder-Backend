@@ -5,6 +5,7 @@ const ApiError = require('./app/api-error');
 const morgan = require('morgan');
 //Định nghĩa các controlller tại đây
 const employeeController = require('./app/routes/employee.route');
+const employerController = require('./app/routes/employer.route');
 
 const app = express();
 
@@ -21,7 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 //Định tuyến các api
 app.use('/api/employee', employeeController);
-
+app.use('/api/employer',employerController);
 
 app.get('/', (req, res) => {
   res.json({message: 'Welcome to Job Finder DB'})

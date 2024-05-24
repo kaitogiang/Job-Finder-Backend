@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const sharedServices = require('../utils/services.util');
+const { ObjectId } = require('mongodb');
 
 class EmployeeService {
     constructor(client) {
@@ -8,6 +9,7 @@ class EmployeeService {
 
     //Hàm trích xuất dữ liệu của Employee
     extractEmployeeData(payload) {
+        const avatarId = new ObjectId('665059e1fdf21b71669818bf');
         const employee = {
             firstName: payload.firstName,
             lastName: payload.lastName,
@@ -19,7 +21,7 @@ class EmployeeService {
             skill: payload.skill,
             experience: payload.experience,
             education: payload.education,
-            avatarId: payload.avatarId
+            avatarId: payload.avatarId || avatarId
         };
 
         Object.keys(employee).forEach(
@@ -79,6 +81,11 @@ class EmployeeService {
     //Hàm xác nhận OTP
     async verifyOTP(email, otp) {
        return await sharedServices.verifyOTP(email, otp);
+    }
+
+    //Hàm lấy thông tin của một người tìm việc dựa vào id của họ
+    async findById(id) {
+        return await this.employees.findOne({ _id: ObjectId.createFromHexString(id) });
     }
 
 }
