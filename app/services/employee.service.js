@@ -85,7 +85,43 @@ class EmployeeService {
 
     //Hàm lấy thông tin của một người tìm việc dựa vào id của họ
     async findById(id) {
-        return await this.employees.findOne({ _id: ObjectId.createFromHexString(id) });
+        // const user = await this.employees.findOne({ _id: ObjectId.createFromHexString(id) });
+        const result = await this.employees.aggregate([
+            {
+                $match: {
+                    _id: ObjectId.createFromHexString(id)
+                }
+            },
+            {
+                $lookup: {
+                    from: 'avatars',
+                    localField: 'avatarId',
+                    foreignField: '_id',
+                    as: 'avatar'
+                }
+            },
+            {
+                $unwind: "$avatar"
+            },
+            {
+                $project: {
+                    _id: 1,
+                    firstName: 1,
+                    lastName: 1,
+                    email: 1,
+                    phone: 1,
+                    address: 1,
+                    resumeLink: 1,
+                    skills: 1,
+                    experience: 1,
+                    education: 1,
+                    avatar: "$avatar.avatarLink",
+                    createdAt: 1,
+                    updatedAt: 1
+                }
+            }
+        ]).toArray();
+        return result.length > 0 ? result[0] : null;
     }
 
 }

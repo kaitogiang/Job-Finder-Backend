@@ -10,7 +10,10 @@ exports.signUp = async (req, res, next) => {
         companyName, companyEmail, companyPhone, companyAddress, description, website, otp
       } = req.body;
     if (!firstName) {
-        return next(new ApiError(400, 'Name is required'));
+        return next(new ApiError(400, 'First name is required'));
+    }
+    if (!lastName) {
+        return next(new ApiError(400, 'Last name is required'));
     }
     if (!email) {
         return next(new ApiError(400, 'Email is required'));
@@ -24,6 +27,9 @@ exports.signUp = async (req, res, next) => {
     if (!address) {
         return next(new ApiError(400, 'Address is required'));
     }
+    if (!role) {
+        return next(new ApiError(400, 'Role is required'));
+    }
     if (!companyName) {
         return next(new ApiError(400, 'Company name is required'));
     }
@@ -35,12 +41,6 @@ exports.signUp = async (req, res, next) => {
     }
     if (!companyAddress) {
         return next(new ApiError(400, 'Company address is required'));
-    }
-    if (!description) {
-        return next(new ApiError(400, 'Description is required'));
-    }
-    if (!website) {
-        return next(new ApiError(400, 'Website is required'));
     }
     if (!otp) {
         return next(new ApiError(400, 'OTP is required'));
