@@ -1,4 +1,4 @@
-const EmployeeService = require('../services/employee.service');
+const JobseekerService = require('../services/jobseeker.service');
 const MongoDB = require('../utils/mongodb.util');
 const ApiError = require('../api-error');
 const jwt = require('jsonwebtoken');
@@ -29,13 +29,13 @@ exports.signUp = async (req, res, next) => {
         return next(new ApiError(400, 'OTP is required'));
     }
     try {
-        const employeeService = new EmployeeService(MongoDB.client);
-        const existingEmp = await employeeService.findByEmail(email);
+        const jobseekerService = new JobseekerService(MongoDB.client);
+        const existingEmp = await jobseekerService.findByEmail(email);
         if (existingEmp) {
             return next(new ApiError(400, 'Email already exists'));
         }
         //Nhập mã OTP trước khi tạo tài khoản
-        const isCorrectOtp = await employeeService.verifyOTP(email, otp);
+        const isCorrectOtp = await jobseekerService.verifyOTP(email, otp);
         //Nếu mã otp không hợp lệ (không đúng hoặc hết hạn) thì thoát
         //ngược lại thì tạo tài khoản
         if (!isCorrectOtp) {
@@ -43,9 +43,9 @@ exports.signUp = async (req, res, next) => {
         }
         
         //Mã hóa mật khẩu
-        req.body.password = await employeeService.hashPassword(password);
-        const employee = await employeeService.signUp(req.body);
-        if (employee) {
+        req.body.password = await jobseekerService.hashPassword(password);
+        const jobseeker = await jobseekerService.signUp(req.body);
+        if (jobseeker) {
             return res.send({message: 'Signup successfully'});
         }
     } catch(error) {
@@ -65,13 +65,13 @@ exports.signIn = async (req, res, next) => {
     }
 
     try {
-        const employeeService = new EmployeeService(MongoDB.client);
-        const employee = await employeeService.signIn({email, password});
-        if (!employee) {
+        const jobseekerService = new JobseekerService(MongoDB.client);
+        const jobseeker = await jobseekerService.signIn({email, password});
+        if (!jobseeker) {
             return next(new ApiError(401, 'Invalid email or password'));
         }
         const token = jwt.sign(
-            employee, jwtSecret, {expiresIn: "1h"}
+            jobseeker, jwtSecret, {expiresIn: "1h"}
         )
 
         res.setHeader('Authorization', `Bearer ${token}`);
@@ -88,8 +88,8 @@ exports.sendOTP = async (req, res, next) => {
         return next(new ApiError(400, 'Email is required'));
     }
     try{
-        const employeeService = new EmployeeService(MongoDB.client);
-        const sent = await employeeService.sendEmail(email);
+        const jobseekerService = new JobseekerService(MongoDB.client);
+        const sent = await jobseekerService.sendEmail(email);
         if (sent) {
             return res.send({message: 'OTP sent successfully'});
         }
@@ -101,20 +101,20 @@ exports.sendOTP = async (req, res, next) => {
 }
 
 //Phương thức lấy thông tin của một người tìm việc cụ thể
-exports.getEmployee = async (req, res, next) => {
-    const employeeId = req.params.userId;
-    if (!employeeId) {
-        return next(new ApiError(400, 'Employee ID is required'));
+exports.getJobseeker = async (req, res, next) => {
+    const jobseekerId = req.params.userId;
+    if (!jobseekerId) {
+        return next(new ApiError(400, 'jobseeker ID is required'));
     }
     try {
-        const employeeService = new EmployeeService(MongoDB.client);
-        const employee = await employeeService.findById(employeeId);
-        if (!employee) {
-            return next(new ApiError(404, 'Employee not found'));
+        const jobseekerService = new JobseekerService(MongoDB.client);
+        const jobseeker = await jobseekerService.findById(jobseekerId);
+        if (!jobseeker) {
+            return next(new ApiError(404, 'jobseeker not found'));
         }
-        return res.send(employee);
+        return res.send(jobseeker);
     } catch(error) {
         console.log(error);
-        return next(new ApiError(500, 'An error occured while getting employee'));
+        return next(new ApiError(500, 'An error occured while getting jobseeker'));
     }
 }

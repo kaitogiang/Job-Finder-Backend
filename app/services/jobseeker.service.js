@@ -2,15 +2,15 @@ const bcrypt = require('bcryptjs');
 const sharedServices = require('../utils/services.util');
 const { ObjectId } = require('mongodb');
 
-class EmployeeService {
+class JobseekerService {
     constructor(client) {
-        this.employees = client.db().collection('employees');
+        this.jobseekers = client.db().collection('jobseekers');
     }
 
-    //Hàm trích xuất dữ liệu của Employee
-    extractEmployeeData(payload) {
+    //Hàm trích xuất dữ liệu của jobseeker
+    extractJobseekerData(payload) {
         const avatarId = new ObjectId('665059e1fdf21b71669818bf');
-        const employee = {
+        const jobseeker = {
             firstName: payload.firstName,
             lastName: payload.lastName,
             email: payload.email,
@@ -24,18 +24,18 @@ class EmployeeService {
             avatarId: payload.avatarId || avatarId
         };
 
-        Object.keys(employee).forEach(
-            (key) => employee[key] === undefined && delete employee[key]
+        Object.keys(jobseeker).forEach(
+            (key) => jobseeker[key] === undefined && delete jobseeker[key]
         );
 
-        return employee;
+        return jobseeker;
     }
     //Hàm đăng ký tài khoản mới cho người tìm việc
     async signUp(payload) {
-        const employee = this.extractEmployeeData(payload);
+        const jobseeker = this.extractJobseekerData(payload);
         const now = new Date();
-        return await this.employees.insertOne({
-            ...employee,
+        return await this.jobseekers.insertOne({
+            ...jobseeker,
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),
         });
@@ -43,23 +43,23 @@ class EmployeeService {
 
     //Hàm xử lý đăng nhập
     async signIn(payload) {
-        const employee = await this.findByEmail(payload.email);
-        if (!employee) {
-            return employee;
+        const jobseeker = await this.findByEmail(payload.email);
+        if (!jobseeker) {
+            return jobseeker;
         }
         const isPasswordCorrect = await this.comparePassword(
             payload.password,
-            employee.password
+            jobseeker.password
         );
         if (isPasswordCorrect) {
-            return employee;
+            return jobseeker;
         }
         return isPasswordCorrect;
     }
 
     //Hàm tìm tài khoản tồn tại trên CSDL dựa theo email
     async findByEmail(email) {
-        return await this.employees.findOne({ email });
+        return await this.jobseekers.findOne({ email });
     }
 
     //hàm hashing password để mã hóa mật khẩu
@@ -85,8 +85,8 @@ class EmployeeService {
 
     //Hàm lấy thông tin của một người tìm việc dựa vào id của họ
     async findById(id) {
-        // const user = await this.employees.findOne({ _id: ObjectId.createFromHexString(id) });
-        const result = await this.employees.aggregate([
+        // const user = await this.jobseekers.findOne({ _id: ObjectId.createFromHexString(id) });
+        const result = await this.jobseekers.aggregate([
             {
                 $match: {
                     _id: ObjectId.createFromHexString(id)
@@ -126,4 +126,4 @@ class EmployeeService {
 
 }
 
-module.exports = EmployeeService;
+module.exports = JobseekerService;
