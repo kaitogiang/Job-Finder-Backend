@@ -14,6 +14,8 @@ router
 router.route("/:userId/add-skill").post(jobseeker.addSkill);
 router.route("/:userId/skills").post(jobseeker.addSkills);
 router.route("/:userId/skills/:skill").delete(jobseeker.removeSkill);
-router.route("/:userId/resume").patch(uploadedPdf, jobseeker.uploadPdf);
-
+router
+  .route("/:userId/resume")
+  .patch(uploadedPdf, jobseeker.uploadPdf)
+  .delete(jobseeker.removePdf);
 module.exports = router;

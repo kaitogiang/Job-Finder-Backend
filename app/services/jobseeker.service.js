@@ -36,7 +36,7 @@ class JobseekerService {
     const resume = {
       filename: payload.filename,
       url: payload.url,
-      uploadDate: payload.uploadDate,
+      uploadedDate: payload.uploadedDate,
     };
     Object.keys(resume).forEach(
       (key) => resume[key] === undefined && delete resume[key]
@@ -241,11 +241,23 @@ class JobseekerService {
     };
     const cv = this.extractResumeData({
       ...payload,
-      uploadDate: new Date().toISOString(),
+      uploadedDate: new Date().toISOString(),
     });
     const result = await this.jobseekers.findOneAndUpdate(
       filter,
       { $set: { resume: [cv] } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+    return result["resume"];
+  }
+
+  async removePdf(id) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $set: { resume: [] } },
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["resume"];

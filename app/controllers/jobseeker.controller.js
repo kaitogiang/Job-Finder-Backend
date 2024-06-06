@@ -267,3 +267,24 @@ exports.uploadPdf = async (req, res, next) => {
     return next(new ApiError(500, "An error occured while uploading pdf"));
   }
 };
+
+exports.removePdf = async (req, res, next) => {
+  const userId = req.params.userId;
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(404, "User not found"));
+    }
+    const pdf = await jobseekerService.removePdf(userId);
+    if (!pdf) {
+      return next(new ApiError(404, "Pdf not found"));
+    } else {
+      return res.send({ message: "Pdf removed successfully", pdf });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while removing pdf"));
+  }
+};
