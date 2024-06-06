@@ -45,6 +45,36 @@ class JobseekerService {
     return resume;
   }
 
+  extractExperienceData(payload) {
+    const experience = {
+      role: payload.role,
+      company: payload.company,
+      duration: payload.from + " - " + payload.to,
+    };
+
+    Object.keys(experience).forEach(
+      (key) => experience[key] === undefined && delete experience[key]
+    );
+
+    return experience;
+  }
+
+  extractEducationData(payload) {
+    const education = {
+      specialization: payload.specialization,
+      school: payload.school,
+      degree: payload.degree,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+    };
+
+    Object.keys(education).forEach(
+      (key) => education[key] === undefined && delete education[key]
+    );
+
+    return education;
+  }
+
   //Hàm đăng ký tài khoản mới cho người tìm việc
   async signUp(payload) {
     //Thiết lập avatar mặc định cho người dùng mới tạo
@@ -261,6 +291,71 @@ class JobseekerService {
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["resume"];
+  }
+
+  async addExperience(id, payload) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    //todo dữ liệu là from, to, role, company
+    const exp = this.extractExperienceData(payload);
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $push: { experience: exp } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+
+    return result["experience"];
+  }
+
+  //todo Hàm xóa một kinh nghiệm dựa vào chỉ số của nó
+  async removeExperience(id, index) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const unsetObject = {};
+    unsetObject[`experience.${index}`] = 1;
+
+    await this.jobseekers.updateOne(filter, { $unset: unsetObject });
+
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      {
+        $pull: { experience: null },
+      },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+
+    return result["experience"];
+  }
+
+  async addEducation(id, payload) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const edu = this.extractEducationData(payload);
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $push: { education: edu } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+
+    return result["education"];
+  }
+
+  async removeEducation(id, index) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const unsetObject = {};
+    unsetObject[`education.${index}`] = 1;
+    await this.jobseekers.updateOne(filter, { $unset: unsetObject });
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $pull: { education: null } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+    return result["education"];
   }
 }
 

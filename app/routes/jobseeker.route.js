@@ -18,4 +18,8 @@ router
   .route("/:userId/resume")
   .patch(uploadedPdf, jobseeker.uploadPdf)
   .delete(jobseeker.removePdf);
+router.route("/:userId/experience").post(jobseeker.addExperience);
+router.route("/:userId/experience/:index").delete(jobseeker.removeExperience);
+router.route("/:userId/education").post(jobseeker.addEducation);
+router.route("/:userId/education/:index").delete(jobseeker.removeEducation);
 module.exports = router;

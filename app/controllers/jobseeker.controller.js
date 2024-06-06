@@ -288,3 +288,121 @@ exports.removePdf = async (req, res, next) => {
     return next(new ApiError(500, "An error occured while removing pdf"));
   }
 };
+
+exports.addExperience = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { role, company, from, to } = req.body;
+  if (!role) {
+    return next(new ApiError(400, "Role is required"));
+  }
+  if (!company) {
+    return next(new ApiError(400, "Company is required"));
+  }
+  if (!from) {
+    return next(new ApiError(400, "From is required"));
+  }
+  if (!to) {
+    return next(new ApiError(400, "To is required"));
+  }
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const experience = await jobseekerService.addExperience(userId, req.body);
+    if (!experience) {
+      return next(new ApiError(400, "Cannot add experience"));
+    } else {
+      return res.send({ message: "Experience added successfully", experience });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while adding experience"));
+  }
+};
+
+exports.removeExperience = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = req.params.index;
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const result = await jobseekerService.removeExperience(
+      userId,
+      desiredIndex
+    );
+    if (!result) {
+      return next(new ApiError(400, "Cannot remove experiece"));
+    } else {
+      return res.send({ message: "Remove experience successfully", result });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while removing experience")
+    );
+  }
+};
+
+exports.addEducation = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { school, degree, specialization, startDate, endDate } = req.body;
+  if (!school) {
+    return next(new ApiError(400, "School is required"));
+  }
+  if (!degree) {
+    return next(new ApiError(400, "Degree is required"));
+  }
+  if (!specialization) {
+    return next(new ApiError(400, "Specialization is required"));
+  }
+  if (!startDate) {
+    return next(new ApiError(400, "Start Date is required"));
+  }
+  if (!endDate) {
+    return next(new ApiError(400, "End Date is required"));
+  }
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const education = await jobseekerService.addEducation(userId, req.body);
+    if (!education) {
+      return next(new ApiError(400, "Cannot add education"));
+    } else {
+      return res.send({ message: "Education added successfully", education });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while adding education"));
+  }
+};
+
+exports.removeEducation = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = req.params.index;
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const result = await jobseekerService.removeEducation(userId, desiredIndex);
+    if (!result) {
+      return next(new ApiError(400, "Cannot remove education"));
+    } else {
+      return res.send({ message: "Remove education successfully", result });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while removing education"));
+  }
+};
