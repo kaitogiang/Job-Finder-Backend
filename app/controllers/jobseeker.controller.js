@@ -349,6 +349,59 @@ exports.removeExperience = async (req, res, next) => {
   }
 };
 
+exports.updateExperience = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = parseInt(req.params.index, 10);
+  if (isNaN(desiredIndex)) {
+    return next(new ApiError(400, "Invalid index"));
+  }
+  const { role, company, from, to } = req.body;
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const existingEducation = await jobseekerService.findExperienceByIndex(
+      userId,
+      desiredIndex
+    );
+    if (!existingEducation) {
+      return next(new ApiError(400, "Experience not found"));
+    }
+    if (role) {
+      existingEducation.role = role;
+    }
+    if (company) {
+      existingEducation.company = company;
+    }
+    if (from) {
+      existingEducation.from = from;
+    }
+    if (to) {
+      existingEducation.to = to;
+    }
+    const experiece = await jobseekerService.updateExperiece(
+      userId,
+      desiredIndex,
+      existingEducation
+    );
+    if (!experiece) {
+      return next(new ApiError(400, "Cannot update experience"));
+    } else {
+      return res.send({
+        message: "Experience updated successfully",
+        experiece,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while updating experience")
+    );
+  }
+};
+
 exports.addEducation = async (req, res, next) => {
   const userId = req.params.userId;
   const { school, degree, specialization, startDate, endDate } = req.body;
@@ -404,5 +457,200 @@ exports.removeEducation = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while removing education"));
+  }
+};
+
+exports.getExperienceAtIndex = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = parseInt(req.params.index, 10);
+  if (isNaN(desiredIndex)) {
+    return next(new ApiError(400, "Index must be a number"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const experience = await jobseekerService.findExperienceByIndex(
+      userId,
+      desiredIndex
+    );
+    console.log(experience);
+    if (!experience) {
+      return next(new ApiError(400, "Experience not found"));
+    } else {
+      return res.send({ message: "Experience found", experience });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while finding experience"));
+  }
+};
+
+exports.updateEducation = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = parseInt(req.params.index, 10);
+  if (isNaN(desiredIndex)) {
+    return next(new ApiError(400, "Index must be a number"));
+  }
+
+  const { school, degree, specialization, startDate, endDate } = req.body;
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const existingEducation = await jobseekerService.findEducationByIndex(
+      userId,
+      desiredIndex
+    );
+    if (!existingEducation) {
+      return next(new ApiError(400, "Education not found"));
+    }
+    //Gán các giá trị vào đối tượng cần thay đổi
+    if (school) {
+      existingEducation["school"] = school;
+    }
+    if (degree) {
+      existingEducation["degree"] = degree;
+    }
+    if (specialization) {
+      existingEducation["specialization"] = specialization;
+    }
+    if (startDate) {
+      existingEducation["startDate"] = startDate;
+    }
+    if (endDate) {
+      existingEducation["endDate"] = endDate;
+    }
+
+    const education = await jobseekerService.updateEducation(
+      userId,
+      desiredIndex,
+      existingEducation
+    );
+    if (!education) {
+      return next(new ApiError(400, "Cannot update education"));
+    } else {
+      return res.send({ message: "Education updated successfully", education });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while updating education"));
+  }
+};
+
+exports.getEducationAtIndex = async (req, res, next) => {
+  const userId = req.params.userId;
+  const desiredIndex = parseInt(req.params.index, 10); //Chuyển đổi thành số nguyên
+  if (isNaN(desiredIndex)) {
+    return next(new ApiError(400, "Index must be a number"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const education = await jobseekerService.findEducationByIndex(
+      userId,
+      desiredIndex
+    );
+    if (!education) {
+      return next(new ApiError(400, "Education not found"));
+    } else {
+      return res.send({ message: "Education found successfully", education });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting education"));
+  }
+};
+
+exports.changeEmail = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { password, email } = req.body;
+  if (!password) {
+    return next(new ApiError(400, "Password is required"));
+  }
+  if (!email) {
+    return next(new ApiError(400, "Email is required"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra người dùng tồn tại
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    //Kiểm tra mật khẩu
+    const isMatch = await jobseekerService.comparePassword(
+      password,
+      user.password
+    );
+    if (!isMatch) {
+      return next(new ApiError(400, "Password is incorrect"));
+    }
+    const existingEmail = await jobseekerService.findByEmail(email);
+    if (existingEmail) {
+      return next(new ApiError(400, "Email already exists"));
+    }
+    //Cập nhật email mới
+    const newEmail = await jobseekerService.changeEmail(userId, email);
+
+    if (!newEmail) {
+      return next(new ApiError(400, "Cannot change email"));
+    } else {
+      return res.send({ message: "Change email successfully", newEmail });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while changing email"));
+  }
+};
+
+//todo Hàm đổi mật khẩu
+exports.changePassword = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword) {
+    return next(new ApiError(400, "Old password is required"));
+  }
+  if (!newPassword) {
+    return next(new ApiError(400, "New password is required"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra người dùng tồn tại
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    //Kiểm tra mật khẩu cũ chính xác
+    const isMatch = await jobseekerService.comparePassword(
+      oldPassword,
+      user.password
+    );
+    if (!isMatch) {
+      return next(new ApiError(400, "Old password is incorrect"));
+    }
+    //Cập nhật mật khẩu mới
+    const result = await jobseekerService.changePassword(userId, newPassword);
+
+    if (!result) {
+      return next(new ApiError(400, "Cannot change password"));
+    } else {
+      return res.send({
+        message: "Change password successfully",
+        isChanged: true,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while changing password"));
   }
 };

@@ -164,6 +164,7 @@ class JobseekerService {
             firstName: 1,
             lastName: 1,
             email: 1,
+            password: 1,
             phone: 1,
             address: 1,
             resume: 1,
@@ -329,6 +330,48 @@ class JobseekerService {
     return result["experience"];
   }
 
+  async findExperienceByIndex(id, index) {
+    const result = await this.jobseekers
+      .aggregate([
+        { $match: { _id: ObjectId.createFromHexString(id) } },
+        {
+          $project: {
+            experienceAtIndex: { $arrayElemAt: ["$experience", index] },
+            _id: 0,
+          },
+        },
+      ])
+      .toArray();
+
+    const exp = result[0]["experienceAtIndex"];
+    const duration = exp["duration"];
+    const indexSlash = duration.indexOf("-");
+    const from = duration.substring(0, indexSlash);
+    const to = duration.substring(indexSlash + 1, duration.length);
+    exp.from = from;
+    exp.to = to;
+    return exp;
+    // return result[0]["experienceAtIndex"];
+  }
+
+  async updateExperiece(id, index, payload) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+
+    const newExp = this.extractExperienceData(payload);
+    console.log(newExp);
+    const setObject = {};
+    setObject[`experience.${index}`] = newExp;
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $set: setObject },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+    //! $unset dùng để xóa một trường còn $set dùng để cập nhật
+    return result["experience"];
+  }
+
   async addEducation(id, payload) {
     const filter = {
       _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
@@ -356,6 +399,75 @@ class JobseekerService {
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["education"];
+  }
+
+  async updateEducation(id, index, payload) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const newEdu = this.extractEducationData(payload);
+    console.log(newEdu);
+    const setObject = {};
+    setObject[`education.${index}`] = newEdu;
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $set: setObject },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+    //! $unset dùng để xóa một trường còn $set dùng để cập nhật
+    return result["education"];
+  }
+
+  async findEducationByIndex(id, index) {
+    const result = await this.jobseekers
+      .aggregate([
+        { $match: { _id: ObjectId.createFromHexString(id) } },
+        {
+          $project: {
+            educationAtIndex: { $arrayElemAt: ["$education", index] },
+            _id: 0,
+          },
+        },
+      ])
+      .toArray();
+    /*
+        ! Trong $project thì $project dùng để cho biết những cột nào sẽ hiển thị
+        ! khi kết hợp các bảng xong. Ở đây nó sẽ hiển thị một cột mới tên là 
+        ! educationAtIndex và giá trị của nó sẽ là { $arrayElemAt: ["$education", index]} 
+        ! Trong đó toán tử $arrayElemAt dùng để trả về phần tử tại chỉ số index trong mảng education,
+        ! $education là đại diện cho mảng education trong jobseekers
+         
+
+          ??
+      */
+    return result[0]["educationAtIndex"];
+  }
+
+  async changeEmail(id, newEmail) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $set: { email: newEmail } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+    return result["email"];
+  }
+
+  async changePassword(id, newPassword) {
+    const filter = {
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    };
+    const encryptPassword = await this.hashPassword(newPassword);
+    console.log("Haspassword la: " + encryptPassword);
+    const result = await this.jobseekers.findOneAndUpdate(
+      filter,
+      { $set: { password: encryptPassword } },
+      { returnDocument: ReturnDocument.AFTER }
+    );
+
+    return result;
   }
 }
 

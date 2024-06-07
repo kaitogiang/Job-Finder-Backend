@@ -19,7 +19,19 @@ router
   .patch(uploadedPdf, jobseeker.uploadPdf)
   .delete(jobseeker.removePdf);
 router.route("/:userId/experience").post(jobseeker.addExperience);
-router.route("/:userId/experience/:index").delete(jobseeker.removeExperience);
+router
+  .route("/:userId/experience/:index")
+  .delete(jobseeker.removeExperience)
+  .get(jobseeker.getExperienceAtIndex)
+  .patch(jobseeker.updateExperience);
+
 router.route("/:userId/education").post(jobseeker.addEducation);
-router.route("/:userId/education/:index").delete(jobseeker.removeEducation);
+router
+  .route("/:userId/education/:index")
+  .delete(jobseeker.removeEducation)
+  .get(jobseeker.getEducationAtIndex)
+  .patch(jobseeker.updateEducation);
+
+router.route("/:userId/change-email").patch(jobseeker.changeEmail);
+router.route("/:userId/change-password").patch(jobseeker.changePassword);
 module.exports = router;
