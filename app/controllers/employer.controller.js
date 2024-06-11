@@ -138,7 +138,7 @@ exports.getEmployer = async (req, res, next) => {
     if (!emp) {
       return next(new ApiError(404, "Employer not found"));
     }
-    return res.send({ message: "Get employer successfully", emp });
+    return res.send(emp);
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while getting employer"));

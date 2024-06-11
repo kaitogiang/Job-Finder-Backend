@@ -6,11 +6,11 @@ const morgan = require("morgan");
 //Định nghĩa các controlller tại đây
 const jobseekerController = require("./app/routes/jobseeker.route");
 const employerController = require("./app/routes/employer.route");
-
+const companyController = require("./app/routes/company.route");
 const app = express();
 
 //HTTP logger
-app.use(morgan("combined"));
+// app.use(morgan("combined"));
 
 app.use(cors());
 app.use(express.json());
@@ -25,6 +25,7 @@ app.use(express.static(path.join(__dirname, "public")));
 //Định tuyến các api
 app.use("/api/jobseeker", jobseekerController);
 app.use("/api/employer", employerController);
+app.use("/api/company", companyController);
 
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Job Finder DB" });

@@ -151,7 +151,7 @@ class EmployerService {
             address: 1,
             password: 1,
             role: 1,
-            avatarId: 1,
+            companyId: 1,
             avatar: "$avatar.avatarLink",
             createdAt: 1,
             updatedAt: 1,
