@@ -3,6 +3,7 @@ const { ObjectId, ReturnDocument } = require("mongodb");
 class JobpostingService {
   constructor(client) {
     this.jobpostings = client.db().collection("jobpostings");
+    this.favoritePosts = client.db().collection("favorite_posts");
   }
   //Hàm trích xuất dữ liệu của Jobposting
   extractJobpostingData(payload) {
@@ -74,15 +75,147 @@ class JobpostingService {
   async getAllJobpostings() {
     return await this.jobpostings.find().toArray();
   }
+  async getAllJobpostingsByCompany(companyId) {
+    return await this.jobpostings
+      .find({ companyId: ObjectId.createFromHexString(companyId) })
+      .toArray();
+  }
   //Hàm lấy bài viết theo ID
-  async getJobpostingById(id) {
-    return await this.jobpostings.findOne({ _id: new ObjectId(id) });
+  async findById(id) {
+    const result = await this.jobpostings
+      .aggregate([
+        {
+          $match: {
+            _id: ObjectId.createFromHexString(id),
+          },
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+      ])
+      .toArray();
+    return result.length > 0 ? result[0] : null;
   }
   //Hàm lấy tất cả bài viết còn hạn nộp
   async getJobpostingByDeadline() {
+    // return await this.jobpostings
+    //   .find({ deadline: { $gte: new Date().toISOString().split("T")[0] } })
+    //   .toArray();
     return await this.jobpostings
-      .find({ deadline: { $gte: new Date() } })
+      .aggregate([
+        {
+          $match: {
+            deadline: { $gte: new Date().toISOString().split("T")[0] },
+          },
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        {
+          $unwind: "$company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "company.avatar",
+          },
+        },
+        {
+          $unwind: "$company.avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            requirements: 1,
+            skills: 1,
+            workLocation: 1,
+            workTime: 1,
+            level: 1,
+            benefit: 1,
+            deadline: 1,
+            jobType: 1,
+            salary: 1,
+            contractType: 1,
+            experience: 1,
+            companyId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            company: {
+              _id: "$company._id",
+              companyName: 1,
+              companyEmail: 1,
+              companyPhone: 1,
+              companyAddress: 1,
+              description: 1,
+              images: 1,
+              contactInformation: 1,
+              policy: 1,
+              avatar: "$company.avatar.avatarLink",
+            },
+          },
+        },
+      ])
       .toArray();
+  }
+
+  //todo Hàm thêm yêu thích một post
+  async addFavoriteJobposting(userId, jobpostingId) {
+    console.log(jobpostingId);
+    const filter = {
+      jobseekerId: ObjectId.createFromHexString(userId),
+    };
+    const result = await this.favoritePosts.findOneAndUpdate(
+      filter,
+      {
+        $push: { posts: jobpostingId },
+        $setOnInsert: {
+          jobseekerId: ObjectId.createFromHexString(userId),
+        },
+      },
+      {
+        upsert: true,
+        returnDocument: ReturnDocument.AFTER,
+      }
+    );
+    console.log(result);
+    return result;
+  }
+
+  async removeFavoriteJobposting(userId, jobpostingId) {
+    const filter = {
+      jobseekerId: ObjectId.createFromHexString(userId),
+    };
+    const result = await this.favoritePosts.findOneAndUpdate(
+      filter,
+      {
+        $pull: { posts: jobpostingId },
+      },
+      {
+        returnDocument: ReturnDocument.AFTER,
+      }
+    );
+    return result["posts"];
+  }
+
+  async getAllFavorite(userId) {
+    const result = await this.favoritePosts.findOne({
+      jobseekerId: ObjectId.createFromHexString(userId),
+    });
+    return result["posts"];
   }
 }
 

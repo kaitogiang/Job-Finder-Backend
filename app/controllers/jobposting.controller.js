@@ -82,3 +82,120 @@ exports.createPost = async (req, res, next) => {
     return next(new ApiError(500, "An error occured while creating post"));
   }
 };
+
+exports.getAllPost = async (req, res, next) => {
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.getAllJobpostings();
+    if (posts) {
+      return res.send(posts);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting posts"));
+  }
+};
+
+exports.getAllCompanyPost = async (req, res, next) => {
+  const companyId = req.params.companyId;
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.getAllJobpostingsByCompany(companyId);
+    if (posts) {
+      return res.send(posts);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting posts"));
+  }
+};
+
+exports.getNotExperiedJobposting = async (req, res, next) => {
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.getJobpostingByDeadline();
+    if (posts) {
+      return res.send(posts);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting posts"));
+  }
+};
+
+exports.getPostById = async (req, res, next) => {
+  const id = req.params.postId;
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.findById(id);
+    if (posts) {
+      return res.send(posts);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting posts"));
+  }
+};
+
+exports.addFavoritePost = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { jobpostingId } = req.body;
+  if (!jobpostingId) {
+    return next(new ApiError(400, "JobpostingId is required"));
+  }
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const favoritePost = await jobpostingService.addFavoriteJobposting(
+      userId,
+      jobpostingId
+    );
+    if (favoritePost) {
+      return res.send({
+        message: "Add favorite post successfully",
+        favoritePost,
+      });
+    } else {
+      return next(new ApiError(400, "Cannot add favorite post"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};
+
+exports.getFavoritePost = async (req, res, next) => {
+  const userId = req.params.userId;
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const favoritePost = await jobpostingService.getAllFavorite(userId);
+    if (favoritePost) {
+      return res.send(favoritePost);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};
+
+exports.removeFavoritePost = async (req, res, next) => {
+  const userId = req.params.userId;
+  const { jobpostingId } = req.body;
+  if (!jobpostingId) {
+    return next(new ApiError(400, "JobpostingId is required"));
+  }
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const favoritePosts = await jobpostingService.removeFavoriteJobposting(
+      userId,
+      jobpostingId
+    );
+    if (favoritePosts) {
+      return res.send(favoritePosts);
+    } else {
+      return next(new ApiError(400, "Can not remove the favorite post"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};

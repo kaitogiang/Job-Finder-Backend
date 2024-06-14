@@ -11,7 +11,7 @@ const jobpostingController = require("./app/routes/jobposting.route");
 const app = express();
 
 //HTTP logger
-// app.use(morgan("combined"));
+app.use(morgan("combined"));
 
 app.use(cors());
 app.use(express.json());
