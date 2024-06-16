@@ -126,6 +126,40 @@ class CompanyService {
     );
     return result["images"];
   }
+
+  async getAll() {
+    const result = await this.companies
+      .aggregate([
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: "$avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            companyName: 1,
+            companyEmail: 1,
+            companyPhone: 1,
+            companyAddress: 1,
+            website: 1,
+            description: 1,
+            images: 1,
+            contactInformation: 1,
+            policy: 1,
+            avatar: "$avatar.avatarLink",
+          },
+        },
+      ])
+      .toArray();
+    return result.length > 0 ? result : null;
+  }
 }
 
 module.exports = CompanyService;

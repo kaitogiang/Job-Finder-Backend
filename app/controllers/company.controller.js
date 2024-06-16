@@ -193,3 +193,14 @@ exports.updateImages = async (req, res, next) => {
     return next(new ApiError(500, "An error occured while updating images"));
   }
 };
+
+exports.getAll = async (req, res, next) => {
+  try {
+    const companyService = new CompanyService(MongoDB.client);
+    const companies = await companyService.getAll();
+    return res.send(companies);
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while getting companies"));
+  }
+};

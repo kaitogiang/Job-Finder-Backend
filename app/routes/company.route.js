@@ -11,6 +11,7 @@ const uploadMiddleware = combinedImageUpload.fields([
   { name: "avatar", maxCount: 1 },
   { name: "images", maxCount: 10 },
 ]);
+router.route("/").get(company.getAll);
 
 router
   .route("/:id")
