@@ -8,6 +8,7 @@ const jobseekerController = require("./app/routes/jobseeker.route");
 const employerController = require("./app/routes/employer.route");
 const companyController = require("./app/routes/company.route");
 const jobpostingController = require("./app/routes/jobposting.route");
+const applicationController = require("./app/routes/application.route");
 const app = express();
 
 //HTTP logger
@@ -28,6 +29,7 @@ app.use("/api/jobseeker", jobseekerController);
 app.use("/api/employer", employerController);
 app.use("/api/company", companyController);
 app.use("/api/jobposting", jobpostingController);
+app.use("/api/application", applicationController);
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Job Finder DB" });
 });

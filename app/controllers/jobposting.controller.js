@@ -125,11 +125,15 @@ exports.getNotExperiedJobposting = async (req, res, next) => {
 
 exports.getPostById = async (req, res, next) => {
   const id = req.params.postId;
+  console.log(id);
   try {
     const jobpostingService = new JobpostingService(MongoDB.client);
     const posts = await jobpostingService.findById(id);
+    console.log(posts);
     if (posts) {
       return res.send(posts);
+    } else {
+      return next(new ApiError(400, "Post not found"));
     }
   } catch (error) {
     console.log(error);
@@ -168,8 +172,11 @@ exports.getFavoritePost = async (req, res, next) => {
   try {
     const jobpostingService = new JobpostingService(MongoDB.client);
     const favoritePost = await jobpostingService.getAllFavorite(userId);
+    console.log(favoritePost);
     if (favoritePost) {
       return res.send(favoritePost);
+    } else {
+      return res.send([]);
     }
   } catch (error) {
     console.log(error);
@@ -197,5 +204,47 @@ exports.removeFavoritePost = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};
+
+exports.updatePost = async (req, res, next) => {
+  const postId = req.params.postId;
+  if (Object.keys(req.body) == 0) {
+    return next(new ApiError(400, "Update cannot be empty"));
+  }
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const updatedPost = await jobpostingService.updateJobposting(
+      postId,
+      req.body
+    );
+    if (updatedPost) {
+      return res.send({ message: "updated post successfully", updatedPost });
+    } else {
+      return next(new ApiError(400, "Cannot update post"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while updating post"));
+  }
+};
+
+exports.deletePost = async (req, res, next) => {
+  const postId = req.params.postId;
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const job = await jobpostingService.findById(postId);
+    if (!job) {
+      return next(new ApiError(400, "No jobposting found"));
+    }
+    const deletedJob = await jobpostingService.deleteJobposting(postId);
+    if (deletedJob) {
+      return res.send({ message: "deleted post successfully", deletedJob });
+    } else {
+      return next(new ApiError(400, "Cannot delete post"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while deleting post"));
   }
 };

@@ -21,7 +21,9 @@ class JobpostingService {
       salary: payload.salary, //? Mức lương
       contractType: payload.contractType, //?Loại hợp đồng
       experience: payload.experience, //? SỐ năm kinh nghiệm yêu cầu
-      companyId: ObjectId.createFromHexString(payload.companyId), //?ID công ty
+      companyId: ObjectId.isValid(payload.companyId)
+        ? ObjectId.createFromHexString(payload.companyId)
+        : undefined, //?ID công ty
     };
 
     Object.keys(jobposting).forEach(
@@ -77,7 +79,69 @@ class JobpostingService {
   }
   async getAllJobpostingsByCompany(companyId) {
     return await this.jobpostings
-      .find({ companyId: ObjectId.createFromHexString(companyId) })
+      .aggregate([
+        {
+          $match: {
+            companyId: ObjectId.createFromHexString(companyId),
+            // deadline: { $gte: new Date().toISOString().split("T")[0] },
+          },
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        {
+          $unwind: "$company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "company.avatar",
+          },
+        },
+        {
+          $unwind: "$company.avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            requirements: 1,
+            skills: 1,
+            workLocation: 1,
+            workTime: 1,
+            level: 1,
+            benefit: 1,
+            deadline: 1,
+            jobType: 1,
+            salary: 1,
+            contractType: 1,
+            experience: 1,
+            companyId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            company: {
+              _id: "$company._id",
+              companyName: 1,
+              companyEmail: 1,
+              companyPhone: 1,
+              companyAddress: 1,
+              description: 1,
+              images: 1,
+              contactInformation: 1,
+              policy: 1,
+              avatar: "$company.avatar.avatarLink",
+            },
+          },
+        },
+      ])
       .toArray();
   }
   //Hàm lấy bài viết theo ID
@@ -215,7 +279,7 @@ class JobpostingService {
     const result = await this.favoritePosts.findOne({
       jobseekerId: ObjectId.createFromHexString(userId),
     });
-    return result["posts"];
+    return result ? result["posts"] : null;
   }
 }
 
