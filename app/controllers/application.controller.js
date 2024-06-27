@@ -72,10 +72,7 @@ exports.applyApplication = async (req, res, next) => {
 };
 
 exports.getAllCompanyApplications = async (req, res, next) => {
-  const { companyId } = req.body;
-  if (!companyId) {
-    return next(new ApiError(400, "companyId are required"));
-  }
+  const companyId = req.params.companyId;
 
   try {
     const companyService = new CompanyService(MongoDB.client);
@@ -87,8 +84,33 @@ exports.getAllCompanyApplications = async (req, res, next) => {
     }
 
     const applications =
-      await applicationService.findAllApplicationsByCompanyId(companyId);
+      await applicationService.findAllApplicationsByCompanyId(company);
 
+    if (applications) {
+      return res.send(applications);
+    } else {
+      return next(new ApiError(400, "Cannot get applications"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while sending application")
+    );
+  }
+};
+
+exports.getAllJobseekerApplication = async (req, res, next) => {
+  const jobseekerId = req.params.jobseekerId;
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const applicationService = new ApplicationService(MongoDB.client);
+    //todo Kiểm tra user có tồn tại không
+    const jobseeker = await jobseekerService.findById(jobseekerId);
+    if (!jobseeker) {
+      return next(new ApiError(400, "Invalid jobseekerId"));
+    }
+    const applications =
+      await applicationService.findAllApplicationsByJobseeker(jobseekerId);
     if (applications) {
       return res.send(applications);
     } else {

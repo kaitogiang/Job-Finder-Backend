@@ -74,7 +74,8 @@ class ApplicationService {
     );
   }
 
-  async findAllApplicationsByCompanyId(companyId) {
+  async findAllApplicationsByCompanyId(company) {
+    const companyId = company._id;
     const result = await this.applicationStorage
       .aggregate([
         {
@@ -90,12 +91,98 @@ class ApplicationService {
         },
         {
           $match: {
-            "jobposting.companyId": ObjectId.createFromHexString(companyId),
+            "jobposting.companyId": companyId,
+          },
+        },
+        {
+          $addFields: {
+            "jobposting.company": company,
+          },
+        },
+        {
+          $sort: {
+            deadline: -1,
           },
         },
       ])
       .toArray();
 
+    return result;
+  }
+  //?Hàm lấy tất cả hồ sơ đã nộp của người dùng
+  async findAllApplicationsByJobseeker(jobseekerId) {
+    const result = await this.applicationStorage
+      .aggregate([
+        {
+          $match: {
+            "applications.jobseekerId":
+              ObjectId.createFromHexString(jobseekerId),
+          },
+        },
+        {
+          $lookup: {
+            from: "jobpostings",
+            localField: "jobId",
+            foreignField: "_id",
+            as: "jobposting",
+          },
+        },
+        {
+          $unwind: "$jobposting",
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "jobposting.companyId",
+            foreignField: "_id",
+            as: "jobposting.company",
+          },
+        },
+        {
+          $unwind: "$jobposting.company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "jobposting.company.avatarId",
+            foreignField: "_id",
+            as: "jobposting.company.avatar",
+          },
+        },
+        {
+          $unwind: "$jobposting.company.avatar",
+        },
+        {
+          $addFields: {
+            "jobposting.company.avatar":
+              "$jobposting.company.avatar.avatarLink",
+          },
+        },
+        {
+          $sort: {
+            deadline: -1,
+          },
+        },
+        {
+          $addFields: {
+            applications: {
+              $filter: {
+                input: "$applications",
+                as: "application",
+                cond: {
+                  $eq: [
+                    "$$application.jobseekerId",
+                    ObjectId.createFromHexString(jobseekerId),
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    console.log(result);
     return result;
   }
 
