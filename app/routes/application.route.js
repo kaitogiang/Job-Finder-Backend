@@ -10,4 +10,7 @@ router
   .get(application.getAllJobseekerApplication);
 router.route("/jobposting/:jobId").post(application.updateStatus);
 
+router
+  .route("/company/:companyId/employer")
+  .get(application.findEmployerByCompany);
 module.exports = router;

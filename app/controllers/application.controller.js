@@ -177,3 +177,28 @@ exports.updateStatus = async (req, res, next) => {
     );
   }
 };
+
+exports.findEmployerByCompany = async (req, res, next) => {
+  const companyId = req.params.companyId;
+  try {
+    const applicationService = new ApplicationService(MongoDB.client);
+    const companyService = new CompanyService(MongoDB.client);
+    const company = companyService.findById(companyId);
+    if (!company) {
+      return next(new ApiError(400, "Invalid companyId"));
+    }
+    const employer = await applicationService.findEmployerByCompanyId(
+      companyId
+    );
+    if (employer) {
+      return res.send(employer);
+    } else {
+      return next(new ApiError(400, "Cannot get applications"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while sending application")
+    );
+  }
+};

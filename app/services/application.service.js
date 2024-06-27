@@ -4,6 +4,7 @@ const sharedServices = require("../utils/services.util");
 class ApplicationService {
   constructor(client) {
     this.applicationStorage = client.db().collection("application_storage");
+    this.employers = client.db().collection("employers");
   }
 
   //Hàm trích xuất dữ liệu của Application
@@ -218,6 +219,16 @@ class ApplicationService {
       jobseeker,
       status
     );
+  }
+
+  //? Hàm tìm kiếm employer dựa vào id của công ty
+  async findEmployerByCompanyId(companyId) {
+    const filter = {
+      companyId: ObjectId.isValid(companyId)
+        ? ObjectId.createFromHexString(companyId)
+        : null,
+    };
+    return await this.employers.findOne(filter);
   }
 }
 
