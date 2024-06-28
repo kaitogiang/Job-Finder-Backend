@@ -134,7 +134,7 @@ exports.updateCompany = async (req, res, next) => {
       return res.send({
         message: "Update company successfully",
         updateCompany,
-        avatarLink,
+        // avatarLink,
       });
     }
   } catch (error) {

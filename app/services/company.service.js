@@ -47,13 +47,39 @@ class CompanyService {
       ...payload,
       avatarId,
     });
-    const result = await this.companies.findOneAndUpdate(
+    //?Thực hiện cập nhật company
+    await this.companies.findOneAndUpdate(
       filter,
       { $set: updatedCompany },
       { returnDocument: ReturnDocument.AFTER }
     );
 
-    return result;
+    //?Join với avatars để lấy link ảnh và thả vào trong updatedCompany
+    const result = await this.companies
+      .aggregate([
+        {
+          $match: filter,
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: "$avatar",
+        },
+        {
+          $addFields: {
+            avatar: "$avatar.avatarLink",
+          },
+        },
+      ])
+      .toArray();
+
+    return result[0];
   }
 
   async findById(id) {

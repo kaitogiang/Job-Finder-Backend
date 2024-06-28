@@ -228,7 +228,30 @@ class ApplicationService {
         ? ObjectId.createFromHexString(companyId)
         : null,
     };
-    return await this.employers.findOne(filter);
+    const employer = await this.employers
+      .aggregate([
+        {
+          $match: filter,
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: "$avatar",
+        },
+        {
+          $addFields: {
+            avatar: "$avatar.avatarLink",
+          },
+        },
+      ])
+      .toArray();
+    return employer[0];
   }
 }
 
