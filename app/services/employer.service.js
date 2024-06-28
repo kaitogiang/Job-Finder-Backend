@@ -19,7 +19,7 @@ class EmployerService {
       companyAddress: payload.companyAddress,
       description: payload.description,
       website: payload.website,
-      companyAvatarId: payload.companyAvatarId,
+      avatarId: payload.companyAvatarId,
     };
 
     Object.keys(company).forEach(

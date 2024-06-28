@@ -36,11 +36,15 @@ class JobpostingService {
   async createJobposting(payload) {
     const jobposting = this.extractJobpostingData(payload);
     const now = new Date();
-    return await this.jobpostings.insertOne({
+    const insertedPost = await this.jobpostings.insertOne({
       ...jobposting,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
+
+    const result = await this.findById(insertedPost.insertedId.toString());
+
+    return result;
   }
 
   //todo hàm xóa bài viết
@@ -69,8 +73,8 @@ class JobpostingService {
         returnDocument: ReturnDocument.AFTER,
       }
     );
-
-    return updatedPost;
+    const result = await this.findById(id);
+    return result;
   }
 
   //Hàm lấy tất cả các bài viết trong cơ sở dữ liệu
@@ -159,6 +163,25 @@ class JobpostingService {
             localField: "companyId",
             foreignField: "_id",
             as: "company",
+          },
+        },
+        {
+          $unwind: "$company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "company.avatar",
+          },
+        },
+        {
+          $unwind: "$company.avatar",
+        },
+        {
+          $addFields: {
+            "company.avatar": "$company.avatar.avatarLink",
           },
         },
       ])
