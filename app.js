@@ -3,14 +3,18 @@ const path = require("path");
 const cors = require("cors");
 const ApiError = require("./app/api-error");
 const morgan = require("morgan");
+const { createServer } = require("http");
+
 //Định nghĩa các controlller tại đây
 const jobseekerController = require("./app/routes/jobseeker.route");
 const employerController = require("./app/routes/employer.route");
 const companyController = require("./app/routes/company.route");
 const jobpostingController = require("./app/routes/jobposting.route");
 const applicationController = require("./app/routes/application.route");
+const setupSocket = require("./app/sockets/socket");
 const app = express();
-
+const httpServer = createServer(app);
+// const io = new Server(httpServer);
 //HTTP logger
 app.use(morgan("combined"));
 
@@ -44,4 +48,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-module.exports = app;
+//Phần code của Socket.io
+setupSocket(httpServer);
+
+module.exports = httpServer;
