@@ -186,6 +186,35 @@ class CompanyService {
       .toArray();
     return result.length > 0 ? result : null;
   }
+
+  async getEmployerIdByCompanyId(id) {
+    const result = await this.companies
+      .aggregate([
+        {
+          $match: {
+            _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+          },
+        },
+        {
+          $lookup: {
+            from: "employers",
+            localField: "_id",
+            foreignField: "companyId",
+            as: "employer",
+          },
+        },
+        {
+          $unwind: "$employer",
+        },
+        {
+          $project: {
+            employerId: { $toString: "$employer._id" },
+          },
+        },
+      ])
+      .toArray();
+    return result.length > 0 ? result[0] : null;
+  }
 }
 
 module.exports = CompanyService;

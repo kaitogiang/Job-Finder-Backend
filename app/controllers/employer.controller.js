@@ -100,6 +100,12 @@ exports.signIn = async (req, res, next) => {
       return next(new ApiError(400, "Invalid email or password"));
     }
     const token = jwt.sign(employer, jwtSecret, { expiresIn: "1h" });
+    //Debug
+    console.log(`Token: ${token}`);
+    const decoded = jwt.verify(token, jwtSecret);
+    console.log(`Decoded: ${decoded}`);
+    //End Debug
+
     res.setHeader("Authorization", `Bearer ${token}`);
     return res.send({
       message: "Signin successfully",

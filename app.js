@@ -11,6 +11,7 @@ const employerController = require("./app/routes/employer.route");
 const companyController = require("./app/routes/company.route");
 const jobpostingController = require("./app/routes/jobposting.route");
 const applicationController = require("./app/routes/application.route");
+const conversationController = require("./app/routes/conversation.route");
 const setupSocket = require("./app/sockets/socket");
 const app = express();
 const httpServer = createServer(app);
@@ -34,6 +35,7 @@ app.use("/api/employer", employerController);
 app.use("/api/company", companyController);
 app.use("/api/jobposting", jobpostingController);
 app.use("/api/application", applicationController);
+app.use("/api/conversation", conversationController);
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Job Finder DB" });
 });
@@ -48,7 +50,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-//Phần code của Socket.io
-setupSocket(httpServer);
+// //Phần code của Socket.io
+// setupSocket(httpServer);
 
 module.exports = httpServer;

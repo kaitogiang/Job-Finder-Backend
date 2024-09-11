@@ -162,6 +162,50 @@ class EmployerService {
     return result.length > 0 ? result[0] : null;
   }
 
+  //Hàm tìm employer theo companyId
+  async findEmployerByCompanyId(companyId) {
+    const result = await this.employers
+      .aggregate([
+        {
+          $match: {
+            companyId: ObjectId.createFromHexString(companyId),
+          },
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: {
+            path: "$avatar",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            phone: 1,
+            address: 1,
+            password: 1,
+            role: 1,
+            companyId: 1,
+            avatar: "$avatar.avatarLink",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+    return result.length > 0 ? result[0] : null;
+  }
+
   //?Hàm dùng để chỉnh sửa profile của nhà tuyển dụng
   async updateProfile(id, payload) {
     const filter = {
