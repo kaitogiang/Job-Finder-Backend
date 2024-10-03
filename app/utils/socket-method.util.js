@@ -12,4 +12,16 @@ function isValidToken(token) {
   }
 }
 
-module.exports = { isValidToken };
+function isUserInRoom(io, roomId, socketId) {
+  const clients = io.sockets.adapter.rooms.get(roomId);
+  // const numClients = clients ? clients.size : 0;
+  if (clients && clients.has(socketId)) {
+    console.log(`User with socketId: ${socketId} is in a room`);
+    return true;
+  } else {
+    console.log(`User with socketId: ${socketId} is not in a room`);
+    return false;
+  }
+}
+
+module.exports = { isValidToken, isUserInRoom };
