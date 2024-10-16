@@ -34,4 +34,5 @@ router
 
 router.route("/:userId/change-email").patch(jobseeker.changeEmail);
 router.route("/:userId/change-password").patch(jobseeker.changePassword);
+router.route("/:userId/fcmToken").patch(jobseeker.saveRegistrationToken);
 module.exports = router;

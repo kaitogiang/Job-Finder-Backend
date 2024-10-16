@@ -1,9 +1,11 @@
 const EmployerService = require("../services/employer.service");
+const FirebaseService = require("../services/firebase.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 const jwt = require("jsonwebtoken");
 const JobseekerService = require("../services/jobseeker.service");
 const jwtSecret = "mysecretKey";
+const { ObjectId } = require("mongodb"); // Add this line
 
 //Phương thức đăng ký cho người tuyển dụng
 exports.signUp = async (req, res, next) => {
@@ -263,5 +265,50 @@ exports.changePassword = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while changing password"));
+  }
+};
+
+exports.saveRegistrationToken = async (req, res, next) => {
+  const { fcmToken } = req.body;
+  const { userId } = req.params;
+
+  console.log(userId);
+  //Kiểm tra đầu vào
+  if (!fcmToken) {
+    return next(new ApiError(400, "fcmToken is required"));
+  }
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is not valid ObjectId"));
+  }
+
+  //thực hiện lưu fcmToken vào DB
+  try {
+    //Khởi tạo các dịch vụ
+    const employerService = new EmployerService(MongoDB.client);
+    const firebaseService = new FirebaseService(MongoDB.client);
+
+    //Kiểm tra user có tồn tại không
+    const user = await employerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+
+    //Nếu có tồn tại thì lưu thông tin user vào DB
+    const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
+      fcmToken,
+      userId,
+      true
+    );
+    if (modifiedCount > 0) {
+      return res.send({ saveSuccess: true });
+    } else {
+      return res.send({ saveSuccess: false });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while saving fcmToken"));
   }
 };

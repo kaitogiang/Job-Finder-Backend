@@ -1,8 +1,10 @@
 const JobseekerService = require("../services/jobseeker.service");
+const FirebaseService = require("../services/firebase.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 const jwt = require("jsonwebtoken");
 const jwtSecret = "mysecretKey";
+const { ObjectId } = require("mongodb");
 
 //Phương thức đăng ký cho người tìm việc mới
 exports.signUp = async (req, res, next) => {
@@ -652,5 +654,47 @@ exports.changePassword = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while changing password"));
+  }
+};
+
+exports.saveRegistrationToken = async (req, res, next) => {
+  const { fcmToken } = req.body;
+  const { userId } = req.params;
+  //Kiểm tra đầu vào
+  if (!fcmToken) {
+    return next(new ApiError(400, "fcmToken is required"));
+  }
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is not valid ObjectId"));
+  }
+
+  //thực hiện lưu fcmToken vào DB
+  try {
+    //Khởi tạo các dịch vụ
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const firebaseService = new FirebaseService(MongoDB.client);
+
+    //Kiểm tra user có tồn tại không
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+
+    //Nếu có tồn tại thì lưu thông tin user vào DB
+    const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
+      fcmToken,
+      userId,
+      false
+    );
+    if (modifiedCount > 0) {
+      return res.send({ saveSuccess: true });
+    } else {
+      return res.send({ saveSuccess: false });
+    }
+  } catch (error) {
+    return next(new ApiError(500, "An error occured while saving fcmToken"));
   }
 };

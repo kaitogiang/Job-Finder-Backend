@@ -13,4 +13,5 @@ router
   .patch(uploadAvatar, employer.updateProfile);
 router.route("/:userId/change-email").patch(employer.changeEmail);
 router.route("/:userId/change-password").patch(employer.changePassword);
+router.route("/:userId/fcmToken").patch(employer.saveRegistrationToken);
 module.exports = router;

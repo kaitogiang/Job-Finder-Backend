@@ -14,7 +14,7 @@ const storage = multer.diskStorage({
 //Thiết lập upload
 const uploadAvatar = multer({
   storage: storage,
-  limits: { fileSize: 1000000 }, //1MB limit
+  limits: { fileSize: 2000000 }, //1MB limit
   fileFilter: (req, file, cb) => {
     checkImageFileType(file, cb);
   },

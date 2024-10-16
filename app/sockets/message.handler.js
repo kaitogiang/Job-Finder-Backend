@@ -1,7 +1,7 @@
 const { isUserInRoom } = require("../utils/socket-method.util");
 const MongoDB = require("../utils/mongodb.util");
 const ConversationService = require("../services/conversation.service");
-
+const FirebaseService = require("../services/firebase.service");
 const messageHandler = (io, socket, activeUsers) => {
   //Sự kiện xem user có trong một room nào không
   socket.on("checkRoom", (roomId) => {
@@ -67,8 +67,12 @@ const messageHandler = (io, socket, activeUsers) => {
     } else if (userInActive) {
       console.log("Gui thong qua socket Id");
       socket.to(userInActive.socketId).emit("receiveMessage", message);
+      const firebaseService = new FirebaseService(MongoDB.client);
+      await firebaseService.sendMessageNotificationToDevice(message);
     } else {
       console.log("Emit su kien");
+      const firebaseService = new FirebaseService(MongoDB.client);
+      await firebaseService.sendMessageNotificationToDevice(message);
     }
   });
 };
