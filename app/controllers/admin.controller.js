@@ -141,3 +141,23 @@ exports.getTotalUserRegistrationStats = async (req, res, next) => {
     );
   }
 };
+
+exports.getAccountStatusCount = async (req, res, next) => {
+  try {
+    const adminService = new AdminService(MongoDB.client);
+    const result = await adminService.getAccountStatusCount();
+    if (result) {
+      return res.send(result);
+    } else {
+      return next(new ApiError(400, "An error occurred"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(
+        500,
+        "An error occurred while getting the account status count"
+      )
+    );
+  }
+};

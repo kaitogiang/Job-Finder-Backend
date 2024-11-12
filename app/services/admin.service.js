@@ -24,6 +24,7 @@ class AdminService {
     this.admins = client.db().collection("admins");
     this.jobseekers = client.db().collection("jobseekers");
     this.employers = client.db().collection("employers");
+    this.lockedUsers = client.db().collection("locked_users");
   }
 
   // Method to extract admin data
@@ -289,6 +290,73 @@ class AdminService {
 
       return result.length > 0 ? result[0].totalUsers : 0;
     }
+  }
+
+  //Hàm trả về số lượng tài khoản bị khóa, đang hoạt động
+  async getAccountStatusCount() {
+    //Đếm số lượng bị khóa cho từng nhóm người dùng
+    const result = await this.lockedUsers
+      .aggregate([
+        {
+          $group: {
+            _id: "$userType",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            userType: "$_id",
+            count: 1,
+          },
+        },
+      ])
+      .toArray();
+    //Tách riêng số lượng giữa jobseeker và employer
+    const foundedLockedJobseeker = result.find(
+      (user) => user.userType === "jobseeker"
+    );
+    const foundedLockedEmployer = result.find(
+      (user) => user.userType === "employer"
+    );
+    //Lấy số lượng bị khóa của mỗi nhóm người dùng
+    const lockedJobseekerCount = foundedLockedJobseeker
+      ? foundedLockedJobseeker.count
+      : 0;
+    const lockedEmployerCount = foundedLockedEmployer
+      ? foundedLockedEmployer.count
+      : 0;
+
+    //Đếm số lượng jobseeker đã đăng ký, nếu có thì trả về một object trong mảng, ngược lại trả về empty array
+    const jobseeker = await this.jobseekers
+      .aggregate([
+        {
+          $count: "totalJobseeker", //"totalJobseeker" là tên biến để chứa tổng số document đếm được
+        },
+      ])
+      .toArray();
+    const totalJobseeker =
+      jobseeker.length > 0 ? jobseeker[0].totalJobseeker : 0;
+
+    const employer = await this.employers
+      .aggregate([
+        {
+          $count: "totalEmployer",
+        },
+      ])
+      .toArray();
+
+    const totalEmployer = employer.length > 0 ? employer[0].totalEmployer : 0;
+
+    //Trả kết quả cuối cùng
+    const finalResult = {
+      activeJobseeker: totalJobseeker - lockedJobseekerCount,
+      activeEmployer: totalEmployer - lockedEmployerCount,
+      lockedJobseeker: lockedJobseekerCount,
+      lockedEmployer: lockedEmployerCount,
+    };
+
+    return finalResult;
   }
 }
 

@@ -15,6 +15,9 @@ router.route("/reset-password").post(admin.resetPassword);
 router.route("/get-admin-name").post(admin.getAdminName);
 
 //Các thàm thống kê cho admin
+//Thống kế số người đăng ký
 router.route("/user-registration").get(admin.getTotalUserRegistrationStats);
 
+//Thống kê trạng tháy khóa của mỗi người dùng
+router.route("/user-account-status").get(admin.getAccountStatusCount);
 module.exports = router;
