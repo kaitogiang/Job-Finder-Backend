@@ -304,6 +304,197 @@ class JobpostingService {
     });
     return result ? result["posts"] : null;
   }
+
+  //Hàm lấy tất cả bài tuyển dụng, bao gồm cả bài đã hết hạn
+  async getAllJobpostingsIncludeExpired() {
+    return await this.jobpostings
+      .aggregate([
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        {
+          $unwind: "$company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "company.avatar",
+          },
+        },
+        {
+          $unwind: "$company.avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            requirements: 1,
+            skills: 1,
+            workLocation: 1,
+            workTime: 1,
+            level: 1,
+            benefit: 1,
+            deadline: 1,
+            jobType: 1,
+            salary: 1,
+            contractType: 1,
+            experience: 1,
+            companyId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            company: {
+              _id: "$company._id",
+              companyName: 1,
+              companyEmail: 1,
+              companyPhone: 1,
+              companyAddress: 1,
+              description: 1,
+              images: 1,
+              contactInformation: 1,
+              policy: 1,
+              avatar: "$company.avatar.avatarLink",
+            },
+          },
+        },
+      ])
+      .toArray();
+  }
+
+  //Hàm lấy các bài viết được tạo trong vòng 1 tuần
+  async getRecentJobpostings() {
+    const now = new Date();
+    //Tính ngày 1 tuần trước
+    //7 ngày * 24 giờ * 60 phút * 60 giây * 1000 mili giây
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return await this.jobpostings
+      .aggregate([
+        {
+          $match: {
+            createdAt: { $gte: oneWeekAgo.toISOString() }, //? Chỉ lấy các bài viết được tạo trong vòng 1 tuần
+          },
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        {
+          $unwind: "$company",
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "company.avatar",
+          },
+        },
+        {
+          $unwind: "$company.avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            requirements: 1,
+            skills: 1,
+            workLocation: 1,
+            workTime: 1,
+            level: 1,
+            benefit: 1,
+            deadline: 1,
+            jobType: 1,
+            salary: 1,
+            contractType: 1,
+            experience: 1,
+            companyId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            company: {
+              _id: "$company._id",
+              companyName: 1,
+              companyEmail: 1,
+              companyPhone: 1,
+              companyAddress: 1,
+              description: 1,
+              images: 1,
+              contactInformation: 1,
+              policy: 1,
+              avatar: "$company.avatar.avatarLink",
+            },
+          },
+        },
+      ])
+      .toArray();
+  }
+
+  async getFavoriteNumberOfJobposting(jobpostingId) {
+    const result = await this.favoritePosts
+      .aggregate([
+        {
+          $match: {
+            posts: jobpostingId, //Lọc ra các document nào mà có phần tử trong mảng posts là jobpostingId
+          },
+        },
+        {
+          $unwind: "$posts", //Phân giải mảng posts ra, mỗi phần tử trong mảng là một document mới
+          //Ví dụ: {jobseekerId: 1, posts: [1, 2, 3]} -> {jobseekerId: 1, posts: 1}, {jobseekerId: 1, posts: 2}, {jobseekerId: 1, posts: 3}
+        },
+        {
+          $match: {
+            posts: jobpostingId, //Lọc ra các document nào có thuộc tính posts là jobpostingId,
+            //bây giờ posts không còn là mảng nữa vì đã phân giải, do đó nó chứa giá trị đơn
+            //và giá trị này chính là jobpostingId
+          },
+        },
+        {
+          //Nhóm các document có cùng giá trị $posts và đếm số lượng của nó, sau đó
+          //trả về một document duy nhất gồm có thuộc tính jobpostingId và count
+          $group: {
+            _id: "$posts", //Khi dùng group thì phải dùng _id để phân biệt các document
+            //Nếu dùng thuộc tính khác làm key thì sẽ bị lỗi 'the field jobpostingId must be an accumlator object
+            //Bởi vì, trong mongoDb trường _Id trong $group stage dùng để chỉ định khóa chính mà các document được nhóm
+            count: { $sum: 1 }, //Tính tổng số lượng phần tử trong mảng posts
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            jobpostingId: "$_id",
+            favoriteCount: "$count",
+          },
+        },
+      ])
+      .toArray();
+    return result.length > 0 ? result[0] : { jobpostingId, favoriteCount: 0 };
+  }
+
+  async getFavoriteNumberOfAllJobpostings() {
+    //lấy danh sách các jobpostingIds
+    const jobpostings = await this.jobpostings.find().toArray();
+    console.log(jobpostings);
+    //Đếm số lượng lượng thích của từng bài đăng
+    const jobpostingFavoriteCountList = [];
+    for (const jobposting of jobpostings) {
+      const jobpostingFavoriteCount = await this.getFavoriteNumberOfJobposting(
+        jobposting._id.toString()
+      );
+      jobpostingFavoriteCountList.push(jobpostingFavoriteCount);
+    }
+    return jobpostingFavoriteCountList;
+  }
 }
 
 module.exports = JobpostingService;

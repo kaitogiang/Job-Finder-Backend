@@ -6,6 +6,9 @@ class JobseekerService {
   constructor(client) {
     this.jobseekers = client.db().collection("jobseekers");
     this.avatars = client.db().collection("avatars");
+    this.lockedUsers = client.db().collection("locked_users");
+    this.favoritePosts = client.db().collection("favorite_posts");
+    this.fcmTokens = client.db().collection("fcm_tokens");
   }
 
   //Hàm trích xuất dữ liệu của jobseeker
@@ -73,6 +76,23 @@ class JobseekerService {
     );
 
     return education;
+  }
+
+  extractLockedJobseekerData(payload) {
+    const lockedJobseeker = {
+      userId: ObjectId.isValid(payload.userId)
+        ? ObjectId.createFromHexString(payload.userId)
+        : null,
+      userType: payload.userType,
+      reason: payload.reason,
+      lockedAt: payload.lockedAt ?? new Date().toISOString(),
+    };
+
+    Object.keys(lockedJobseeker).forEach(
+      (key) => lockedJobseeker[key] === undefined && delete lockedJobseeker[key]
+    );
+
+    return lockedJobseeker;
   }
 
   //Hàm đăng ký tài khoản mới cho người tìm việc
@@ -468,6 +488,160 @@ class JobseekerService {
     );
 
     return result;
+  }
+
+  //-------PHẦN QUẢN LÝ DÀNH CHO ADMIN-------
+  async findAll() {
+    const result = await this.jobseekers
+      .aggregate([
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: "$avatar",
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            password: 1,
+            phone: 1,
+            address: 1,
+            resume: 1,
+            skills: 1,
+            experience: 1,
+            education: 1,
+            avatar: "$avatar.avatarLink",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+    return result;
+  }
+
+  async findAllRecent() {
+    // Calculate the date one week ago from the current date
+    const oneWeekAgo = new Date();
+    // Subtract 7 days from the current date to get the date one week ago
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const result = await this.jobseekers
+      .aggregate([
+        {
+          $match: {
+            // Creating a new Date object from oneWeekAgo and converting it to
+            //ISOString to ensure the date is in a format that MongoDB can understand for comparison.
+            createdAt: { $gte: new Date(oneWeekAgo).toISOString() },
+          },
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: {
+            path: "$avatar",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            password: 1,
+            phone: 1,
+            address: 1,
+            resume: 1,
+            skills: 1,
+            experience: 1,
+            education: 1,
+            avatar: { $ifNull: ["$avatar.avatarLink", null] },
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+    return result;
+  }
+
+  async findAllLocked() {
+    return await this.lockedUsers.find({}).toArray();
+  }
+
+  async checkLockedJobseeker(userId) {
+    const result = await this.lockedUsers.findOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    return result ? true : false;
+  }
+
+  async lockAccount(payload) {
+    const lockedJobseeker = this.extractLockedJobseekerData(payload);
+    const result = await this.lockedUsers.insertOne(lockedJobseeker);
+    return {
+      _id: result.insertedId,
+      ...lockedJobseeker,
+    };
+  }
+
+  async unlockAccount(userId) {
+    console.log(userId);
+    const result = await this.lockedUsers.deleteOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    return result.deletedCount > 0;
+  }
+
+  async deleteAccount(userId) {
+    const user = await this.jobseekers.findOne({
+      _id: ObjectId.createFromHexString(userId),
+    });
+    //Xóa các tham chiếu trước
+    //Xóa bảng lockedUsers nếu người dùng bị lock
+    await this.lockedUsers.deleteOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    //Xóa bảng favorite post
+    await this.favoritePosts.deleteOne({
+      jobseekerId: ObjectId.createFromHexString(userId),
+    });
+    //Xóa bảng FCM token
+    await this.fcmTokens.deleteOne({
+      _id: ObjectId.createFromHexString(user.fcmId),
+    });
+    
+
+    //Xóa các notification bị delay trong collection notifications
+    //---để sau
+
+    //Xóa bảng jobseekers
+    const result = await this.jobseekers.deleteOne({
+      _id: ObjectId.createFromHexString(userId),
+    });
+
+    return result.deletedCount > 0;
+  }
+
+  async findLockedJobseekerById(userId) {
+    return await this.lockedUsers.findOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
   }
 }
 

@@ -33,6 +33,8 @@ class ApplicationService {
 
     const resumeLink = jobseeker.resume[0]["url"];
 
+    const now = new Date();
+
     const jobseekerApplication = {
       jobseekerId: jobseeker._id,
       name: jobseeker.firstName,
@@ -40,6 +42,7 @@ class ApplicationService {
       phone: jobseeker.phone,
       resume: resumeLink,
       status: 0,
+      submittedAt: now.toISOString(),
     };
     const result = await this.applicationStorage.findOneAndUpdate(
       filter,
@@ -110,6 +113,7 @@ class ApplicationService {
 
     return result;
   }
+
   //?Hàm lấy tất cả hồ sơ đã nộp của người dùng
   async findAllApplicationsByJobseeker(jobseekerId) {
     const result = await this.applicationStorage
@@ -252,6 +256,166 @@ class ApplicationService {
       ])
       .toArray();
     return employer[0];
+  }
+
+  //-----DỊCH VỤ CHO ADMIN
+  //hàm dùng để lấy tất cả các application ở tất cả các công ty
+  async findAllApplications() {
+    const result = await this.applicationStorage
+      .aggregate([
+        {
+          //Join với collection jobposting dựa vào jobId của collection applicationStorage
+          $lookup: {
+            from: "jobpostings",
+            localField: "jobId",
+            foreignField: "_id",
+            as: "jobposting",
+          },
+        },
+        //Sau khi join thì thuộc tính jobposting sẽ nằm ở root và nó một mảng chứa kết quả, dù chỉ có một item thì vẫn là mảng
+        //nên dùng stage $unwind để phân giải mảng thành mỗi phần tử là một document và các thuộc tính chung thì giống nhau
+        //giữa các document
+        {
+          $unwind: "$jobposting",
+        },
+        //sau khi unwind rồi thì thuộc tính jobposting ở root chứa object của collection đã join
+        //dựa vào companyId của jobposting, tiếp tục join với companies collection
+        {
+          $lookup: {
+            from: "companies",
+            localField: "jobposting.companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        //Sau khi join xong thuộc tính company nằm ở gốc giống như jobposting và cũng là mảng nên cần phân giải
+        {
+          $unwind: "$company",
+        },
+        //Lúc này jobposting và company nằm ở root, tiếp theo là join với avatars collection dựa vào avatarId
+        //mà avatarId này trong đối tượng nằm trong thuộc tính company nên truy xuất là company.avatarId
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        //sau khi join xong thì avatar sẽ nằm ở root giống jobposting và company và cũng là mảng nên cần phân giải ra
+        {
+          $unwind: "$avatar",
+        },
+        //Tiếp theo là thêm thuộc tính mới cho object nằm trong thuộc tính jobposting ở root, thêm thuộc tính company
+        //có giá trị là object nằm trong thuộc tính company nằm ở root. Dùng ký hiệu $ tham chiếu đến giá trị trong document
+        //$company dùng để tham chiếu đến giá trị của thuộc tính company trong document
+        {
+          $addFields: {
+            "jobposting.company": "$company",
+          },
+        },
+        //Sau khi thêm xong company, tiếp tục thêm vào sâu bên trong của thuộc tính company của jobposting
+        {
+          $addFields: {
+            "jobposting.company.avatar": "$avatar.avatarLink",
+          },
+        },
+        {
+          $project: {
+            company: 0, // Exclude the root-level company field
+          },
+        },
+        {
+          $sort: {
+            deadline: -1,
+          },
+        },
+      ])
+      .toArray();
+
+    return result.length > 0 ? result : [];
+  }
+
+  //Hàm truy xuất một ApplicationStorage dựa vào id, mỗi application storage tương với một jobposting
+  async findApplicationsById(storageId) {
+    const result = await this.applicationStorage
+      .aggregate([
+        {
+          $match: {
+            _id: ObjectId.createFromHexString(storageId),
+          }
+        },
+        {
+          //Join với collection jobposting dựa vào jobId của collection applicationStorage
+          $lookup: {
+            from: "jobpostings",
+            localField: "jobId",
+            foreignField: "_id",
+            as: "jobposting",
+          },
+        },
+        //Sau khi join thì thuộc tính jobposting sẽ nằm ở root và nó một mảng chứa kết quả, dù chỉ có một item thì vẫn là mảng
+        //nên dùng stage $unwind để phân giải mảng thành mỗi phần tử là một document và các thuộc tính chung thì giống nhau
+        //giữa các document
+        {
+          $unwind: "$jobposting",
+        },
+        //sau khi unwind rồi thì thuộc tính jobposting ở root chứa object của collection đã join
+        //dựa vào companyId của jobposting, tiếp tục join với companies collection
+        {
+          $lookup: {
+            from: "companies",
+            localField: "jobposting.companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        //Sau khi join xong thuộc tính company nằm ở gốc giống như jobposting và cũng là mảng nên cần phân giải
+        {
+          $unwind: "$company",
+        },
+        //Lúc này jobposting và company nằm ở root, tiếp theo là join với avatars collection dựa vào avatarId
+        //mà avatarId này trong đối tượng nằm trong thuộc tính company nên truy xuất là company.avatarId
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        //sau khi join xong thì avatar sẽ nằm ở root giống jobposting và company và cũng là mảng nên cần phân giải ra
+        {
+          $unwind: "$avatar",
+        },
+        //Tiếp theo là thêm thuộc tính mới cho object nằm trong thuộc tính jobposting ở root, thêm thuộc tính company
+        //có giá trị là object nằm trong thuộc tính company nằm ở root. Dùng ký hiệu $ tham chiếu đến giá trị trong document
+        //$company dùng để tham chiếu đến giá trị của thuộc tính company trong document
+        {
+          $addFields: {
+            "jobposting.company": "$company",
+          },
+        },
+        //Sau khi thêm xong company, tiếp tục thêm vào sâu bên trong của thuộc tính company của jobposting
+        {
+          $addFields: {
+            "jobposting.company.avatar": "$avatar.avatarLink",
+          },
+        },
+        {
+          $project: {
+            company: 0, // Exclude the root-level company field
+          },
+        },
+        {
+          $sort: {
+            deadline: -1,
+          },
+        },
+      ])
+      .toArray();
+
+    return result.length > 0 ? result[0] : null;
   }
 }
 

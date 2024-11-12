@@ -248,3 +248,59 @@ exports.deletePost = async (req, res, next) => {
     return next(new ApiError(500, "An error occured while deleting post"));
   }
 };
+
+exports.getAllJobpostingsIncludeExpired = async (req, res, next) => {
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.getAllJobpostingsIncludeExpired();
+    return res.send(posts);
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};
+
+exports.getRecentJobpostings = async (req, res, next) => {
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const posts = await jobpostingService.getRecentJobpostings();
+    return res.send(posts);
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while gettting posts"));
+  }
+};
+
+exports.getFavoriteNumberOfJobposting = async (req, res, next) => {
+  const jobpostingId = req.params.postId;
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    //Kiểm tra xem bài viết có tồn tại không
+    const jobposting = await jobpostingService.findById(jobpostingId);
+    if (!jobposting) {
+      return next(new ApiError(400, "Jobposting not found"));
+    }
+    const favoriteNumber =
+      await jobpostingService.getFavoriteNumberOfJobposting(jobpostingId);
+    return res.send(favoriteNumber);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while gettting favorite number")
+    );
+  }
+};
+
+exports.getFavoriteNumberOfAllJobpostings = async (req, res, next) => {
+  try {
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    const favoriteNumberList =
+      await jobpostingService.getFavoriteNumberOfAllJobpostings();
+    return res.send(favoriteNumberList);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while getting all favorite number")
+    );
+  }
+};

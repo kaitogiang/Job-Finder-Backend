@@ -383,17 +383,17 @@ exports.updateExperience = async (req, res, next) => {
     if (to) {
       existingEducation.to = to;
     }
-    const experiece = await jobseekerService.updateExperiece(
+    const experience = await jobseekerService.updateExperiece(
       userId,
       desiredIndex,
       existingEducation
     );
-    if (!experiece) {
+    if (!experience) {
       return next(new ApiError(400, "Cannot update experience"));
     } else {
       return res.send({
         message: "Experience updated successfully",
-        experiece,
+        experience,
       });
     }
   } catch (error) {
@@ -657,6 +657,31 @@ exports.changePassword = async (req, res, next) => {
   }
 };
 
+// exports.findRegistrationToken = async (req, res, next) => {
+//   const {userId} = req.params;
+//   const {fcmToken} = req.body;
+
+//   //Kiểm tra đầu vào
+//   if (!fcmToken) {
+//     return next(new ApiError(400, "fcmToken is required"));
+//   }
+//   if (!userId) {
+//     return next(new ApiError(400, "userId is required"));
+//   }
+//   if (!ObjectId.isValid(userId)) {
+//     return next(new ApiError(400, "userId is not valid ObjectId"));
+//   }
+
+//   try {
+//     const firebaseService = new FirebaseService(MongoDB.client);
+//     const jobseekerService = new JobseekerService(MongoDB.client);
+//     const result = await firebaseService.checkRegistrationToken();
+
+//   } catch(error) {
+//     return next(new ApiError(500, "An error occured while saving fcmToken"));
+//   }
+// }
+
 exports.saveRegistrationToken = async (req, res, next) => {
   const { fcmToken } = req.body;
   const { userId } = req.params;
@@ -683,6 +708,21 @@ exports.saveRegistrationToken = async (req, res, next) => {
       return next(new ApiError(400, "User not found"));
     }
 
+    //Kiểm tra xem token này đã được thêm vào chưa,
+    //cần truyền vào userId, isEmployer và fcmToken
+    const existingToken = await firebaseService.checkRegistrationToken(
+      userId,
+      false,
+      fcmToken
+    );
+
+    if (existingToken) {
+      return res.send({
+        saveSuccess: true,
+        message: "Your registration token has already been added",
+      });
+    }
+
     //Nếu có tồn tại thì lưu thông tin user vào DB
     const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
       fcmToken,
@@ -690,11 +730,249 @@ exports.saveRegistrationToken = async (req, res, next) => {
       false
     );
     if (modifiedCount > 0) {
-      return res.send({ saveSuccess: true });
+      return res.send({
+        saveSuccess: true,
+        message: "Added new registration token successfully",
+      });
     } else {
-      return res.send({ saveSuccess: false });
+      return res.send({
+        saveSuccess: false,
+        message: "Cannot add new registration token",
+      });
     }
   } catch (error) {
+    console.log(error);
     return next(new ApiError(500, "An error occured while saving fcmToken"));
+  }
+};
+
+exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
+  const { userId } = req.params;
+  const { fcmToken, loginState } = req.body;
+  //Kiểm tra đầu vào
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  if (!fcmToken) {
+    return next(new ApiError(400, "fcmToken is required"));
+  }
+  if (loginState == null) {
+    return next(new ApiError(400, "loginState is required"));
+  }
+  if (typeof loginState !== "boolean") {
+    return next(new ApiError(400, "loginState must be a boolean value"));
+  }
+  try {
+    const firebaseService = new FirebaseService(MongoDB.client);
+    const existingToken = await firebaseService.checkRegistrationToken(
+      userId,
+      false,
+      fcmToken
+    );
+    if (!existingToken) {
+      return next(new ApiError(400, "Registration token not found"));
+    }
+    //Nếu token tồn tại thì tiến hành đổi loginState
+    const result = await firebaseService.updateLoginStateOfRegistrationToken(
+      fcmToken,
+      userId,
+      loginState,
+      false
+    );
+    if (result > 0) {
+      return res.send({
+        updateSucess: true,
+        message: "Updated loginState of Registration Token successfully",
+      });
+    } else {
+      return res.send({
+        updateSucess: false,
+        message: "Failed to update loginState of Registration Token",
+      });
+    }
+  } catch (error) {
+    return next(
+      new ApiError(
+        500,
+        "An error occured while updating login state of registration token"
+      )
+    );
+  }
+};
+
+//--------PHẦN QUẢN LÝ DÀNH CHO ADMIN--------
+exports.getAllJobseekers = async (req, res, next) => {
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const jobseekers = await jobseekerService.findAll();
+    return res.send(jobseekers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occurred while fetching jobseekers")
+    );
+  }
+};
+
+exports.getAllRecentJobseekers = async (req, res, next) => {
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const recentJobseekers = await jobseekerService.findAllRecent();
+    return res.send(recentJobseekers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occurred while fetching recent jobseekers")
+    );
+  }
+};
+
+exports.getAllLockedJobseekers = async (req, res, next) => {
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const lockedJobseekers = await jobseekerService.findAllLocked();
+    return res.send(lockedJobseekers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occurred while fetching locked jobseekers")
+    );
+  }
+};
+
+exports.getLockedJobseekerById = async (req, res, next) => {
+  const { userId } = req.params;
+
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is not valid ObjectId"));
+  }
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const lockedJobseeker = await jobseekerService.findLockedJobseekerById(
+      userId
+    );
+    if (!lockedJobseeker) {
+      return next(new ApiError(400, "Locked jobseeker not found"));
+    } else {
+      return res.send(lockedJobseeker);
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occurred while fetching locked jobseeker")
+    );
+  }
+};
+
+exports.lockAccount = async (req, res, next) => {
+  const { userId, reason } = req.body;
+  const userType = "jobseeker";
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+
+  if (!reason) {
+    return next(new ApiError(400, "reason is required"));
+  }
+
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra xem user có tồn tại không
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+
+    //Kiểm tra xem user đã bị khóa chưa
+    const isLocked = await jobseekerService.checkLockedJobseeker(userId);
+    if (isLocked) {
+      return next(new ApiError(400, "User is already locked"));
+    }
+
+    const result = await jobseekerService.lockAccount({
+      userId,
+      userType,
+      reason,
+    });
+    if (!result) {
+      return next(new ApiError(400, "Cannot lock account"));
+    } else {
+      return res.send({ message: "Lock account successfully", result });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while locking account"));
+  }
+};
+
+exports.checkLockedJobseeker = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ApiError(400, "jobseekerId is required"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const isLocked = await jobseekerService.checkLockedJobseeker(userId);
+    return res.send({ isLocked });
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while checking locked jobseeker")
+    );
+  }
+};
+
+exports.unlockAccount = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra xem user có bị khóa không
+    const isLocked = await jobseekerService.checkLockedJobseeker(userId);
+    if (!isLocked) {
+      return next(new ApiError(400, "User is not locked"));
+    }
+    const result = await jobseekerService.unlockAccount(userId);
+    if (!result) {
+      return next(new ApiError(400, "Cannot unlock account"));
+    } else {
+      return res.send({
+        message: "Unlock account successfully",
+        isUnlock: true,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while unlocking account"));
+  }
+};
+
+exports.deleteAccount = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  try {
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra xem user có tồn tại không
+    const user = await jobseekerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    const result = await jobseekerService.deleteAccount(userId);
+    if (!result) {
+      return next(new ApiError(400, "Cannot delete account"));
+    } else {
+      return res.send({
+        message: "Delete account successfully",
+        isDeleted: true,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while deleting account"));
   }
 };

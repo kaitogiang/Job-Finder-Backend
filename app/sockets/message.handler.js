@@ -44,9 +44,10 @@ const messageHandler = (io, socket, activeUsers) => {
   // Nếu không, nó sẽ gửi tin nhắn trực tiếp đến người dùng được chỉ định.
   // Sau đó, nó sẽ cập nhật trạng thái tin nhắn của người gửi.
   socket.on("sendMessage", async (conversationId, userId, message) => {
+    console.log("UserId trong sendMessage: ", userId);
     const userInActive =
       activeUsers.find((user) => user.userId === userId) ?? undefined;
-    const userInRoom = isUserInRoom(io, conversationId, userInActive.socketId);
+    const userInRoom = isUserInRoom(io, conversationId, userInActive?.socketId);
     if (userInRoom) {
       console.log("Gui thong qua roomId");
       message.isRead = true;

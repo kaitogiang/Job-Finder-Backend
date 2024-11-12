@@ -6,11 +6,22 @@ const router = express.Router();
 router.route("/create").post(jobposting.createPost);
 router.route("/company/:companyId").get(jobposting.getAllCompanyPost);
 router.route("/").get(jobposting.getNotExperiedJobposting);
+router.route("/all").get(jobposting.getAllJobpostingsIncludeExpired);
+router
+  .route("/all/favorite-numbers")
+  .get(jobposting.getFavoriteNumberOfAllJobpostings);
+router.route("/recent").get(jobposting.getRecentJobpostings);
+
 router
   .route("/:postId")
   .get(jobposting.getPostById)
   .patch(jobposting.updatePost)
   .delete(jobposting.deletePost);
+
+router
+  .route("/:postId/favorite-number")
+  .get(jobposting.getFavoriteNumberOfJobposting);
+
 router
   .route("/user/:userId/favorite")
   .post(jobposting.addFavoritePost)

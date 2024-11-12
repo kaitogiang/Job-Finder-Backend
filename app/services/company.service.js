@@ -215,6 +215,13 @@ class CompanyService {
       .toArray();
     return result.length > 0 ? result[0] : null;
   }
+
+  async getCompanyNameByCompanyId(id) {
+    const result = await this.companies.findOne({
+      _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
+    });
+    return result ? result.companyName : null;
+  }
 }
 
 module.exports = CompanyService;

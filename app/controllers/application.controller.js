@@ -202,3 +202,49 @@ exports.findEmployerByCompany = async (req, res, next) => {
     );
   }
 };
+
+//----HÀM DÀNH CHO ADMIN -------------
+
+exports.findAllApplications = async (req, res, next) => {
+    try {
+      const companyService = new CompanyService(MongoDB.client);
+      const applicationService = new ApplicationService(MongoDB.client);
+  
+      const applications =
+        await applicationService.findAllApplications();
+  
+      if (applications) {
+        return res.send(applications);
+      } else {
+        return next(new ApiError(400, "Cannot get applications"));
+      }
+    } catch (error) {
+      console.log(error);
+      return next(
+        new ApiError(500, "An error occured while sending application")
+      );
+    }
+}
+
+exports.findApplicationsById = async (req, res, next) => {
+    const storageId = req.params.storageId;
+    try {
+      const companyService = new CompanyService(MongoDB.client);
+      const applicationService = new ApplicationService(MongoDB.client);
+  
+      const applications =
+        await applicationService.findApplicationsById(storageId);
+  
+      if (applications) {
+        return res.send(applications);
+      } else {
+        return next(new ApiError(400, "Cannot get applications"));
+      }
+    } catch (error) {
+      console.log(error);
+      return next(
+        new ApiError(500, "An error occured while sending application")
+      );
+    }
+}
+

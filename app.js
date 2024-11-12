@@ -12,6 +12,8 @@ const companyController = require("./app/routes/company.route");
 const jobpostingController = require("./app/routes/jobposting.route");
 const applicationController = require("./app/routes/application.route");
 const conversationController = require("./app/routes/conversation.route");
+//controller cho admin
+const adminController = require("./app/routes/admin.route");
 const setupSocket = require("./app/sockets/socket");
 const app = express();
 const httpServer = createServer(app);
@@ -36,6 +38,7 @@ app.use("/api/company", companyController);
 app.use("/api/jobposting", jobpostingController);
 app.use("/api/application", applicationController);
 app.use("/api/conversation", conversationController);
+app.use("/api/admin", adminController);
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Job Finder DB" });
 });

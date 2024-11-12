@@ -8,6 +8,7 @@ class EmployerService {
     this.employers = client.db().collection("employers");
     this.companies = client.db().collection("companies");
     this.avatars = client.db().collection("avatars");
+    this.lockedUsers = client.db().collection("locked_users");
   }
 
   //Hàm trích xuất dữ liệu của Company
@@ -46,6 +47,23 @@ class EmployerService {
     );
 
     return employer;
+  }
+
+  extractLockedEmployerData(payload) {
+    const lockedEmployer = {
+      userId: ObjectId.isValid(payload.userId)
+        ? ObjectId.createFromHexString(payload.userId)
+        : null,
+      userType: payload.userType,
+      reason: payload.reason,
+      lockedAt: payload.lockedAt ?? new Date().toISOString(),
+    };
+
+    Object.keys(lockedEmployer).forEach(
+      (key) => lockedEmployer[key] === undefined && delete lockedEmployer[key]
+    );
+
+    return lockedEmployer;
   }
 
   async signUp(payload) {
@@ -261,6 +279,176 @@ class EmployerService {
       { returnDocument: ReturnDocument.AFTER }
     );
     return result;
+  }
+
+  //------PHẦN QUẢN LÝ DÀNH CHO ADMIN------
+  async findAll() {
+    const result = await this.employers
+      .aggregate([
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: {
+            path: "$avatar",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            phone: 1,
+            address: 1,
+            password: 1,
+            role: 1,
+            companyId: 1,
+            avatar: "$avatar.avatarLink",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+    return result;
+  }
+
+  async findAllRecent() {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const result = await this.employers
+      .aggregate([
+        {
+          $match: {
+            createdAt: { $gte: new Date(oneWeekAgo).toISOString() },
+          },
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: {
+            path: "$avatar",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            phone: 1,
+            address: 1,
+            password: 1,
+            role: 1,
+            companyId: 1,
+            avatar: "$avatar.avatarLink",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+    return result;
+  }
+
+  async findAllLocked() {
+    return await this.lockedUsers.find({}).toArray();
+  }
+
+  async checkLockedEmployer(userId) {
+    const result = await this.lockedUsers.findOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    return result ? true : false;
+  }
+
+  async findLockedEmployerById(userId) {
+    const result = await this.lockedUsers.findOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    return result;
+  }
+
+  async lockAccount(payload) {
+    const lockedEmployer = this.extractLockedEmployerData(payload);
+    const result = await this.lockedUsers.insertOne(lockedEmployer);
+    return {
+      _id: result.insertedId,
+      ...lockedEmployer,
+    };
+  }
+
+  async unlockAccount(userId) {
+    const result = await this.lockedUsers.deleteOne({
+      userId: ObjectId.createFromHexString(userId),
+    });
+    return result.deletedCount > 0;
+  }
+
+  //Hàm tìm kiếm thông tin company dựa vào employerId
+  async findCompanyByEmployerId(employerId) {
+    const result = await this.employers
+      .aggregate([
+        {
+          $match: {
+            _id: ObjectId.createFromHexString(employerId),
+          },
+        },
+        {
+          $lookup: {
+            from: "companies",
+            localField: "companyId",
+            foreignField: "_id",
+            as: "company",
+          },
+        },
+        {
+          $unwind: {
+            path: "$company",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "avatars",
+            localField: "company.avatarId",
+            foreignField: "_id",
+            as: "avatar",
+          },
+        },
+        {
+          $unwind: {
+            path: "$avatar",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            "company.avatar": "$avatar.avatarLink",
+          },
+        },
+        {
+          $replaceRoot: { newRoot: "$company" }, // Replaces the root with the company object
+        },
+      ])
+      .toArray();
+    console.log(result);
+    return result.length > 0 ? result[0] : null;
   }
 }
 

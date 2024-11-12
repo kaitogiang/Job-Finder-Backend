@@ -296,6 +296,21 @@ exports.saveRegistrationToken = async (req, res, next) => {
       return next(new ApiError(400, "User not found"));
     }
 
+    //Kiểm tra xem token này đã được thêm vào chưa,
+    //cần truyền vào userId, isEmployer và fcmToken
+    const existingToken = await firebaseService.checkRegistrationToken(
+      userId,
+      true,
+      fcmToken
+    );
+
+    if (existingToken) {
+      return res.send({
+        saveSuccess: true,
+        message: "Your registration token has already been saved",
+      });
+    }
+
     //Nếu có tồn tại thì lưu thông tin user vào DB
     const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
       fcmToken,
@@ -303,12 +318,258 @@ exports.saveRegistrationToken = async (req, res, next) => {
       true
     );
     if (modifiedCount > 0) {
-      return res.send({ saveSuccess: true });
+      return res.send({
+        saveSuccess: true,
+        message: "New registration token saved successfully",
+      });
     } else {
       return res.send({ saveSuccess: false });
     }
   } catch (error) {
     console.log(error);
     return next(new ApiError(500, "An error occured while saving fcmToken"));
+  }
+};
+
+exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
+  const { userId } = req.params;
+  const { fcmToken, loginState } = req.body;
+  //Kiểm tra đầu vào
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  if (!fcmToken) {
+    return next(new ApiError(400, "fcmToken is required"));
+  }
+  if (loginState == null) {
+    return next(new ApiError(400, "loginState is required"));
+  }
+  if (typeof loginState !== "boolean") {
+    return next(new ApiError(400, "loginState must be a boolean value"));
+  }
+  try {
+    const firebaseService = new FirebaseService(MongoDB.client);
+    const existingToken = await firebaseService.checkRegistrationToken(
+      userId,
+      true,
+      fcmToken
+    );
+    if (!existingToken) {
+      return next(new ApiError(400, "Registration token not found"));
+    }
+    //Nếu token tồn tại thì tiến hành đổi loginState
+    const result = await firebaseService.updateLoginStateOfRegistrationToken(
+      fcmToken,
+      userId,
+      loginState,
+      true
+    );
+    if (result > 0) {
+      return res.send({
+        updateSucess: true,
+        message: "Updated loginState of Registration Token successfully",
+      });
+    } else {
+      return res.send({
+        updateSucess: false,
+        message: "Failed to update loginState of Registration Token",
+      });
+    }
+  } catch (error) {
+    return next(
+      new ApiError(
+        500,
+        "An error occured while updating login state of registration token"
+      )
+    );
+  }
+};
+
+exports.getAllEmployers = async (req, res, next) => {
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    const employers = await employerService.findAll();
+    return res.send(employers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while getting all employers")
+    );
+  }
+};
+
+exports.getAllRecentEmployers = async (req, res, next) => {
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    const recentEmployers = await employerService.findAllRecent();
+    return res.send(recentEmployers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while getting all recent employers")
+    );
+  }
+};
+
+exports.getAllLockedEmployers = async (req, res, next) => {
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    const lockedEmployers = await employerService.findAllLocked();
+    return res.send(lockedEmployers);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while getting all locked employers")
+    );
+  }
+};
+
+exports.checkLockedEmployer = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    const isLocked = await employerService.checkLockedEmployer(userId);
+    return res.send({ isLocked });
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while checking locked employer")
+    );
+  }
+};
+
+exports.findLockedEmployerById = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is not valid ObjectId"));
+  }
+
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    //Kiểm tra xem employer có tồn tại không
+    const user = await employerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    //Kiểm tra xem employer này có bị khóa không
+    const isLocked = await employerService.checkLockedEmployer(userId);
+    if (!isLocked) {
+      return next(new ApiError(400, "Employer is not locked"));
+    }
+    const lockedEmployer = await employerService.findLockedEmployerById(userId);
+    return res.send(lockedEmployer);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while finding locked employer by id")
+    );
+  }
+};
+
+exports.lockAccount = async (req, res, next) => {
+  const { userId, reason } = req.body;
+  const userType = "employer";
+  if (!userId) {
+    return next(new ApiError(400, "userId is required"));
+  }
+  if (!reason) {
+    return next(new ApiError(400, "reason is required"));
+  }
+
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    //Kiểm tra xem user có tồn tại không
+    const user = await employerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    //Kiểm tra xem user này có bị khóa không
+    const isLocked = await employerService.checkLockedEmployer(userId);
+    if (isLocked) {
+      return next(new ApiError(400, "Employer is already locked"));
+    }
+    const result = await employerService.lockAccount({
+      userId,
+      userType,
+      reason,
+    });
+    if (!result) {
+      return next(new ApiError(400, "Cannot lock account"));
+    } else {
+      return res.send({ message: "Lock account successfully", result });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while locking employer account")
+    );
+  }
+};
+
+exports.unlockAccount = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is not valid"));
+  }
+
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    //Kiểm tra xem user có tồn tại không
+    const user = await employerService.findById(userId);
+    if (!user) {
+      return next(new ApiError(400, "User not found"));
+    }
+    //Kiểm tra xem user này bị khóa chưa
+    const isLocked = await employerService.checkLockedEmployer(userId);
+    if (!isLocked) {
+      return next(new ApiError(400, "Employer is not locked"));
+    }
+    const result = await employerService.unlockAccount(userId);
+    if (!result) {
+      return next(new ApiError(400, "Cannot unlock account"));
+    } else {
+      return res.send({
+        message: "Unlock account successfully",
+        isUnlock: true,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while unlocking employer account")
+    );
+  }
+};
+
+exports.findCompanyByEmployerId = async (req, res, next) => {
+  const { userId } = req.params;
+  if (!ObjectId.isValid(userId)) {
+    return next(new ApiError(400, "userId is required"));
+  }
+
+  try {
+    const employerService = new EmployerService(MongoDB.client);
+    //Kiểm tra xem employer có tồn tại không
+    const employer = await employerService.findById(userId);
+    if (!employer) {
+      return next(new ApiError(400, "Employer not found"));
+    }
+    const company = await employerService.findCompanyByEmployerId(userId);
+    if (!company) {
+      return next(new ApiError(400, "Company not found"));
+    }
+    return res.send(company);
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while finding company by employerId")
+    );
   }
 };
