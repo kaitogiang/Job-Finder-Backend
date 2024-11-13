@@ -20,4 +20,10 @@ router.route("/user-registration").get(admin.getTotalUserRegistrationStats);
 
 //Thống kê trạng tháy khóa của mỗi người dùng
 router.route("/user-account-status").get(admin.getAccountStatusCount);
+
+//Thống kê số bài đăng theo thời gian
+router.route("/jobposting-stats").get(admin.getJobpostingCountStats);
+
+//Thống kê số đơn đã nộp theo thời gian
+router.route("/application-stats").get(admin.getApplicationStatusCountStats);
 module.exports = router;

@@ -2,6 +2,7 @@ const AdminService = require("../services/admin.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 const jwt = require("jsonwebtoken");
+const { Admin } = require("mongodb");
 const jwtSecret = "mysecretKey";
 
 // Method for admin sign in
@@ -157,6 +158,76 @@ exports.getAccountStatusCount = async (req, res, next) => {
       new ApiError(
         500,
         "An error occurred while getting the account status count"
+      )
+    );
+  }
+};
+
+exports.getJobpostingCountStats = async (req, res, next) => {
+  const queriedPeriod = req.query.period;
+  if (
+    queriedPeriod !== "passed7days" &&
+    queriedPeriod !== "passed4weeks" &&
+    queriedPeriod != "passed5months"
+  ) {
+    return next(new ApiError(400, "query is not valid"));
+  }
+
+  try {
+    const adminService = new AdminService(MongoDB.client);
+    let result;
+    if (queriedPeriod === "passed7days") {
+      result = await adminService.getPassed7daysJobpostings();
+    } else if (queriedPeriod === "passed4weeks") {
+      result = await adminService.getPassed2WeeksJobpostings();
+    } else {
+      result = await adminService.getPassed5MonthsJobposting();
+    }
+    if (result) {
+      return res.send(result);
+    }
+    return next(new ApiError(400, "Can't get data"));
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(
+        500,
+        "An error occurred while getting the account status count"
+      )
+    );
+  }
+};
+
+exports.getApplicationStatusCountStats = async (req, res, next) => {
+  const queriedPeriod = req.query.period;
+  if (
+    queriedPeriod !== "week" &&
+    queriedPeriod !== "month" &&
+    queriedPeriod !== "year"
+  ) {
+    return next(new ApiError(400, "Time Query is not valid"));
+  }
+
+  try {
+    const adminService = new AdminService(MongoDB.client);
+    let result;
+    if (queriedPeriod === "week") {
+      result = await adminService.getTotalApplicationsInWeek();
+    } else if (queriedPeriod === "month") {
+      result = await adminService.getTotalApplicationsInMonth();
+    } else if (queriedPeriod === "year") {
+      result = await adminService.getTotalApplicationInYear();
+    }
+    if (result) {
+      return res.send(result);
+    }
+    return next(new ApiError(400, "Can't get application status count"));
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(
+        500,
+        "An error occurred while getting application status count"
       )
     );
   }
