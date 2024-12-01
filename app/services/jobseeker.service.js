@@ -6,7 +6,8 @@ class JobseekerService {
   constructor(client) {
     this.jobseekers = client.db().collection("jobseekers");
     this.avatars = client.db().collection("avatars");
-    this.lockedUsers = client.db().collection("locked_users");
+    // this.lockedUsers = client.db().collection("locked_users");
+    this.lockedJobseekers = client.db().collection("locked_jobseekers");
     this.favoritePosts = client.db().collection("favorite_posts");
     this.fcmTokens = client.db().collection("fcm_tokens");
   }
@@ -296,19 +297,29 @@ class JobseekerService {
     });
     const result = await this.jobseekers.findOneAndUpdate(
       filter,
-      { $set: { resume: [cv] } },
+      // { $set: { resume: [cv] } },
+      {$push: {resume: cv}},
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["resume"];
   }
 
-  async removePdf(id) {
+  async removePdf(id, index) {
     const filter = {
       _id: ObjectId.isValid(id) ? ObjectId.createFromHexString(id) : null,
     };
+    const unsetObject = {};
+    unsetObject[`resume.${index}`] = 1;
+
+    //Loại bỏ một đối tượng ra khỏi mảng resume
+    await this.jobseekers.updateOne(filter, {$unset: unsetObject}); //Đối tượng tại index sẽ bị null
+
     const result = await this.jobseekers.findOneAndUpdate(
       filter,
-      { $set: { resume: [] } },
+      // { $set: { resume: [] } },
+      {
+        $pull: {resume: null}, //Gọi pull để loại bỏ các giá trị null
+      },
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["resume"];
@@ -581,11 +592,11 @@ class JobseekerService {
   }
 
   async findAllLocked() {
-    return await this.lockedUsers.find({}).toArray();
+    return await this.lockedJobseekers.find({}).toArray();
   }
 
   async checkLockedJobseeker(userId) {
-    const result = await this.lockedUsers.findOne({
+    const result = await this.lockedJobseekers.findOne({
       userId: ObjectId.createFromHexString(userId),
     });
     return result ? true : false;
@@ -593,7 +604,7 @@ class JobseekerService {
 
   async lockAccount(payload) {
     const lockedJobseeker = this.extractLockedJobseekerData(payload);
-    const result = await this.lockedUsers.insertOne(lockedJobseeker);
+    const result = await this.lockedJobseekers.insertOne(lockedJobseeker);
     return {
       _id: result.insertedId,
       ...lockedJobseeker,
@@ -602,7 +613,7 @@ class JobseekerService {
 
   async unlockAccount(userId) {
     console.log(userId);
-    const result = await this.lockedUsers.deleteOne({
+    const result = await this.lockedJobseekers.deleteOne({
       userId: ObjectId.createFromHexString(userId),
     });
     return result.deletedCount > 0;
@@ -625,7 +636,6 @@ class JobseekerService {
     await this.fcmTokens.deleteOne({
       _id: ObjectId.createFromHexString(user.fcmId),
     });
-    
 
     //Xóa các notification bị delay trong collection notifications
     //---để sau
@@ -639,7 +649,7 @@ class JobseekerService {
   }
 
   async findLockedJobseekerById(userId) {
-    return await this.lockedUsers.findOne({
+    return await this.lockedJobseekers.findOne({
       userId: ObjectId.createFromHexString(userId),
     });
   }

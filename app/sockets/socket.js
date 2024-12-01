@@ -4,7 +4,8 @@ const connectionHandler = require("./connection.handler");
 const disconnectHandler = require("./disconnect.handler");
 const { jobpostingHandler } = require("./jobposting.handler");
 const { messageHandler } = require("./message.handler");
-
+const { behaviourHandler } = require("./behaviour.handler");
+const { jobSuggestionHandler } = require("./job.suggestion.handler");
 const jwt = require("jsonwebtoken");
 const activeUsers = [];
 
@@ -50,6 +51,12 @@ const setupSocket = (httpServer) => {
 
     //Hàm xử lý sự kiện tin nhắn
     messageHandler(io, socket, activeUsers);
+
+    //Hàm xử lý sự kiện ghi nhận hành vi người dùng
+    behaviourHandler(io, socket);
+
+    //Hàm lắng nghe sự kiện gợi ý công việc
+    // jobSuggestionHandler(io, socket);
   });
 
   //Mongodb change Stream setup

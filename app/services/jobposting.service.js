@@ -495,6 +495,8 @@ class JobpostingService {
     }
     return jobpostingFavoriteCountList;
   }
+
+  
 }
 
 module.exports = JobpostingService;

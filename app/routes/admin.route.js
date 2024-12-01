@@ -26,4 +26,7 @@ router.route("/jobposting-stats").get(admin.getJobpostingCountStats);
 
 //Thống kê số đơn đã nộp theo thời gian
 router.route("/application-stats").get(admin.getApplicationStatusCountStats);
+
+//Thống kê những khu vực nào có ứng tuyển
+router.route("/recruitment-area").get(admin.getRecruitmentAreaCountStats);
 module.exports = router;

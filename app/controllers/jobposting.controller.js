@@ -2,6 +2,12 @@ const JobpostingService = require("../services/jobposting.service");
 const CompanyService = require("../services/company.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
+const JobseekerService = require("../services/jobseeker.service");
+const {
+  haversine,
+  searchProvince,
+  findNearestProvince,
+} = require("../utils/helper.method");
 
 //todo phương thức dùng để tạo một bài viết mới
 exports.createPost = async (req, res, next) => {
@@ -302,5 +308,81 @@ exports.getFavoriteNumberOfAllJobpostings = async (req, res, next) => {
     return next(
       new ApiError(500, "An error occured while getting all favorite number")
     );
+  }
+};
+
+//Hàm gợi ý công việc dựa vào vị trí, kỹ năng người dùng
+exports.suggestJob = async (req, res, next) => {
+  const userId = req.params.userId;
+  try {
+    //Định nghĩa các dịch vụ
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    const jobpostingService = new JobpostingService(MongoDB.client);
+    //Kiểm tra userId có tồn tại không
+    const jobseeker = await jobseekerService.findById(userId);
+    if (!jobseeker) {
+      return next(new ApiError(400, "User is not found"));
+    }
+    //Lấy danh sách các bài tuyển dụng còn hạn
+    const jobposting = await jobpostingService.getJobpostingByDeadline();
+    //Tiến hành đề xuất cho jobseeker dựa vào các thông tin về profile của ứng viên
+    //Lấy tỉnh/thành phố của jobseeker
+    const jobseekerAddress = jobseeker.address;
+    //Lấy tất cả tỉnh/thành phố của các bài tuyển dụng
+    const jobpostingProvinces = [
+      ...new Set(jobposting.map((job) => job.workLocation)),
+    ];
+    //Chuyển đổi mỗi province đạng chuỗi sang kiểu Province bao gồm tọa độ bên trong
+    const provinceLocation = jobpostingProvinces.map((provinceString) =>
+      searchProvince(provinceString)
+    );
+    //Trả về danh sách các tỉnh/thành phố cùng với khoảng cách của chúng đến
+    //tỉnh/thành phố của ứng viên, các tỉnh/thành phố này sắp xếp
+    //tăng dần theo khoảng cách
+    const nearestProvince = provinceLocation
+      .map((location) => {
+        //Chuyển đổi tỉnh/thành phố của ứng viên sang kiểu có tọa độ
+        const jobseekerLocation = searchProvince(jobseekerAddress);
+        //Tính khoảng cách từ tỉnh/thành phố của ứng viên với tỉnh/thành phố của bài tuyển dụng
+        const distance = haversine(jobseekerLocation, location);
+
+        return {
+          provinece: location.name,
+          distance: distance,
+        };
+      })
+      .sort((a, b) => a.distance - b.distance);
+    //Ưu tiên chọn tìm công việc trong tỉnh/thành phố của ứng viên
+    //Dựa vào khoảng cách tìm từ khoảng cách gần nhất đến xa nhất, chọn tối đa 9 cái phù hợp nhất với ứng viên
+    //Có hai trường hợp, 1 là ứng viên đã thiết lập hồ sơ, dựa vào hồ sơ, nếu ứng viên chưa thiết lập hồ sơ thì chọn vị trí gần nhất
+    //Xem xét các bài tuyển dụng ở gần ứng viên nhất
+    let suggestJob = [];
+    nearestProvince.forEach((location) => {
+      const jobposingsInLocation = jobposting.filter(
+        (jobpost) => jobpost.workLocation == location.provinece
+      );
+      suggestJob.push(...jobposingsInLocation);
+    });
+    //danh sách suggestJob chứa công việc gần ứng viên nhất đến xa nhất
+    //jobBasedSkill là dùng để lọc ra những công việc có kỹ năng khớp với
+    //kỹ năng của ứng viên từ gần nhất đến xa nhất
+    //Nếu như jobBasedSKills là rỗng tức không khớp thì sẽ lấy các
+    //công việc ở gần ứng viên nhất
+    const jobBasedSkills = suggestJob.filter((jobpost) => {
+      const hasMatchingSkills = jobpost.skills.some((requiredSkill) =>
+        jobseeker.skills.includes(requiredSkill)
+      );
+      return hasMatchingSkills;
+    });
+    console.log("based skill: " + jobBasedSkills.length);
+    let jobSet = new Set(jobBasedSkills);
+    suggestJob.forEach((jobpost) => {
+      jobSet.add(jobpost);
+    });
+    console.log(jobSet);
+    return res.send([...jobSet]);
+  } catch (error) {
+    console.log(error);
+    return next(new ApiError(500, "An error occured while suggesting job"));
   }
 };

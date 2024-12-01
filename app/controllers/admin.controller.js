@@ -166,9 +166,9 @@ exports.getAccountStatusCount = async (req, res, next) => {
 exports.getJobpostingCountStats = async (req, res, next) => {
   const queriedPeriod = req.query.period;
   if (
-    queriedPeriod !== "passed7days" &&
-    queriedPeriod !== "passed4weeks" &&
-    queriedPeriod != "passed5months"
+    queriedPeriod !== "past7days" &&
+    queriedPeriod !== "past4weeks" &&
+    queriedPeriod != "past5months"
   ) {
     return next(new ApiError(400, "query is not valid"));
   }
@@ -176,9 +176,9 @@ exports.getJobpostingCountStats = async (req, res, next) => {
   try {
     const adminService = new AdminService(MongoDB.client);
     let result;
-    if (queriedPeriod === "passed7days") {
+    if (queriedPeriod === "past7days") {
       result = await adminService.getPassed7daysJobpostings();
-    } else if (queriedPeriod === "passed4weeks") {
+    } else if (queriedPeriod === "past4weeks") {
       result = await adminService.getPassed2WeeksJobpostings();
     } else {
       result = await adminService.getPassed5MonthsJobposting();
@@ -232,3 +232,18 @@ exports.getApplicationStatusCountStats = async (req, res, next) => {
     );
   }
 };
+
+
+//THống kê số lượng công việc và công ty trong mỗi khu vực
+exports.getRecruitmentAreaCountStats = async (req, res, next) => {
+  try {
+    const adminService = new AdminService(MongoDB.client);
+    //Mảng chứa danh sách các thống kê trong từng khu vực
+    const result = await adminService.getRecruitmentArea();
+    if (result) {
+      return res.send(result);
+    }
+  } catch(error) {
+    return next(new ApiError(500, "Error occoured while gettting the recruitment area"));
+  }
+}

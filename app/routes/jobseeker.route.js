@@ -29,10 +29,12 @@ router.route("/:userId/delete").delete(jobseeker.deleteAccount); //PHẦN CỦA 
 router.route("/:userId/add-skill").post(jobseeker.addSkill);
 router.route("/:userId/skills").post(jobseeker.addSkills);
 router.route("/:userId/skills/:skill").delete(jobseeker.removeSkill);
+//CV----
 router
   .route("/:userId/resume")
   .patch(uploadedPdf, jobseeker.uploadPdf)
-  .delete(jobseeker.removePdf);
+router.route("/:userId/resume/:index").delete(jobseeker.removePdf);
+//CV----
 router.route("/:userId/experience").post(jobseeker.addExperience);
 router
   .route("/:userId/experience/:index")

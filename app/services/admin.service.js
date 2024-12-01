@@ -27,7 +27,9 @@ class AdminService {
     this.admins = client.db().collection("admins");
     this.jobseekers = client.db().collection("jobseekers");
     this.employers = client.db().collection("employers");
-    this.lockedUsers = client.db().collection("locked_users");
+    // this.lockedUsers = client.db().collection("locked_users");
+    this.lockedJobseekers = client.db().collection("locked_jobseekers");
+    this.lockedEmployers = client.db().collection("locked_employers");
     this.jobpostings = client.db().collection("jobpostings");
     this.applicationStorage = client.db().collection("application_storage");
   }
@@ -299,39 +301,11 @@ class AdminService {
 
   //Hàm trả về số lượng tài khoản bị khóa, đang hoạt động
   async getAccountStatusCount() {
-    //Đếm số lượng bị khóa cho từng nhóm người dùng
-    const result = await this.lockedUsers
-      .aggregate([
-        {
-          $group: {
-            _id: "$userType",
-            count: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            userType: "$_id",
-            count: 1,
-          },
-        },
-      ])
-      .toArray();
-    //Tách riêng số lượng giữa jobseeker và employer
-    const foundedLockedJobseeker = result.find(
-      (user) => user.userType === "jobseeker"
-    );
-    const foundedLockedEmployer = result.find(
-      (user) => user.userType === "employer"
-    );
-    //Lấy số lượng bị khóa của mỗi nhóm người dùng
-    const lockedJobseekerCount = foundedLockedJobseeker
-      ? foundedLockedJobseeker.count
-      : 0;
-    const lockedEmployerCount = foundedLockedEmployer
-      ? foundedLockedEmployer.count
-      : 0;
-
+    //Đếm số lượng ứng viên và nhà tuyển dụng bị khóa
+    const lockedJobseekerCount = await this.lockedJobseekers.countDocuments({});
+    const lockedEmployerCount = await this.lockedEmployers.countDocuments({});
+    console.log("LockedJobseeker: " + lockedJobseekerCount);
+    console.log("Locked employer: " + lockedEmployerCount);
     //Đếm số lượng jobseeker đã đăng ký, nếu có thì trả về một object trong mảng, ngược lại trả về empty array
     const jobseeker = await this.jobseekers
       .aggregate([
@@ -628,9 +602,7 @@ class AdminService {
       );
       //Lấy tổng các đơn đã nhận bao gồm cả những cái đang xử lý, đã chấp nhận và đã từ chối
       const totalApplication =
-        receivedApplicationCount +
-        approvedApplicationCount +
-        rejectedApplicationCount;
+        countReceivedInDay + countApprovedInDay + countRejectedInDay;
       //Tạo object để lưu trữ lại theo đơn theo tuần ngày và số lượng theo trạng thái
       const result = {
         label: formattedStart,
@@ -776,6 +748,37 @@ class AdminService {
     }
 
     return stats;
+  }
+
+  async getRecruitmentArea() {
+    //Số lượng công ty
+    //số lượng công việc mới
+    const result = await this.jobpostings
+      .aggregate([
+        {
+          $group: {
+            _id: "$workLocation", //Nhóm theo nơi làm việc
+            jobpostingCount: { $sum: 1 },
+            uniqueCompanyIds: { $addToSet: "$companyId" }, //thu thập các companyId duy nhất trong mỗi nhóm
+            //$addToSet dùng để tạo một mảng chứa phần tử không trùng nhau, nó sẽ bỏ qua những phần tử trùng
+          },
+        },
+        {
+          $addFields: {
+            companyCount: { $size: "$uniqueCompanyIds" },
+            location: "$_id",
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            uniqueCompanyIds: 0,
+          },
+        },
+      ])
+      .toArray();
+
+    return result.length > 0 ? result : [];
   }
 }
 

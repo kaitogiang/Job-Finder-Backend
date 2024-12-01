@@ -12,6 +12,8 @@ router
   .get(jobposting.getFavoriteNumberOfAllJobpostings);
 router.route("/recent").get(jobposting.getRecentJobpostings);
 
+router.route("/suggestJob/:userId").get(jobposting.suggestJob);
+
 router
   .route("/:postId")
   .get(jobposting.getPostById)

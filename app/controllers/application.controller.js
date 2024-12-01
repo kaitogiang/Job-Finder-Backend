@@ -2,12 +2,14 @@ const ApplicationService = require("../services/application.service");
 const JobpostingService = require("../services/jobposting.service");
 const JobseekerService = require("../services/jobseeker.service");
 const CompanyService = require("../services/company.service");
+const FirebaseService = require("../services/firebase.service");
+const EmployerService = require("../services/employer.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 
 //? Hàm gửi ứng tuyển cho nhà tuyển dụng
 exports.applyApplication = async (req, res, next) => {
-  const { jobId, jobseekerId, employerEmail } = req.body;
+  const { jobId, jobseekerId, employerEmail, resumeLink } = req.body;
   if (!jobId) {
     return next(new ApiError(400, "jobId are required"));
   }
@@ -18,11 +20,17 @@ exports.applyApplication = async (req, res, next) => {
     return next(new ApiError(400, "EmployerEmail are required"));
   }
 
+  if (!resumeLink) {
+    return next(new ApiError(400, "ResumeLink is required"));
+  }
+
   try {
     //todo Khởi tạo các đối tượng dịch vụ
     const applicationService = new ApplicationService(MongoDB.client);
     const jobpostingService = new JobpostingService(MongoDB.client);
     const jobseekerService = new JobseekerService(MongoDB.client);
+    const firebaseService = new FirebaseService(MongoDB.client);
+    const employerService = new EmployerService(MongoDB.client);
     //todo Sử dụng các dịch vụ đã định nghĩa
     const jobposting = await jobpostingService.findById(jobId);
     const jobseeker = await jobseekerService.findById(jobseekerId);
@@ -45,7 +53,8 @@ exports.applyApplication = async (req, res, next) => {
 
     const newApplication = await applicationService.applyApplication(
       jobposting,
-      jobseeker
+      jobseeker,
+      resumeLink,
     );
     if (newApplication) {
       //? GỬi mail cho nhà tuyển dụng biết
@@ -54,6 +63,16 @@ exports.applyApplication = async (req, res, next) => {
         jobposting,
         jobseeker
       );
+      //Tạo các thông tin cần thuyết cho thông báo của nhà tuyển dụng
+      const employer = await employerService.findByEmail(employerEmail);
+      const notification = {
+        senderIsJobseeker: true,
+        senderId: jobseekerId,
+        receiverId: employer._id.toString(),
+        jobpostingId: jobId,
+      };
+      //Gửi thông báo đến ứng dụng của nhà tuyển dụng
+      await firebaseService.sendApplicationNotification(notification);
       if (sent) {
         return res.send({
           message: "Send application successfully",
@@ -140,7 +159,8 @@ exports.updateStatus = async (req, res, next) => {
     const applicationService = new ApplicationService(MongoDB.client);
     const jobpostingService = new JobpostingService(MongoDB.client);
     const jobseekerService = new JobseekerService(MongoDB.client);
-
+    const employerService = new EmployerService(MongoDB.client);
+    const firebaseService = new FirebaseService(MongoDB.client);
     const jobposting = await jobpostingService.findById(jobId);
     const jobseeker = await jobseekerService.findById(jobseekerId);
     if (!jobposting) {
@@ -161,6 +181,18 @@ exports.updateStatus = async (req, res, next) => {
         jobseeker,
         status
       );
+      //Tìm employer dựa vào companyId của jobposting collection
+      const employer = await employerService.findEmployerByCompanyId(
+        jobposting.companyId.toString()
+      );
+      const notification = {
+        senderIsJobseeker: false,
+        senderId: employer._id.toString(),
+        receiverId: jobseekerId,
+        jobpostingId: jobId,
+      };
+      //Gửi thông báo đến ứng dụng của nhà tuyển dụng
+      await firebaseService.sendApplicationNotification(notification);
       if (sent) {
         return res.send({
           message: "Update status successfully",
@@ -206,45 +238,44 @@ exports.findEmployerByCompany = async (req, res, next) => {
 //----HÀM DÀNH CHO ADMIN -------------
 
 exports.findAllApplications = async (req, res, next) => {
-    try {
-      const companyService = new CompanyService(MongoDB.client);
-      const applicationService = new ApplicationService(MongoDB.client);
-  
-      const applications =
-        await applicationService.findAllApplications();
-  
-      if (applications) {
-        return res.send(applications);
-      } else {
-        return next(new ApiError(400, "Cannot get applications"));
-      }
-    } catch (error) {
-      console.log(error);
-      return next(
-        new ApiError(500, "An error occured while sending application")
-      );
+  try {
+    const companyService = new CompanyService(MongoDB.client);
+    const applicationService = new ApplicationService(MongoDB.client);
+
+    const applications = await applicationService.findAllApplications();
+
+    if (applications) {
+      return res.send(applications);
+    } else {
+      return next(new ApiError(400, "Cannot get applications"));
     }
-}
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while sending application")
+    );
+  }
+};
 
 exports.findApplicationsById = async (req, res, next) => {
-    const storageId = req.params.storageId;
-    try {
-      const companyService = new CompanyService(MongoDB.client);
-      const applicationService = new ApplicationService(MongoDB.client);
-  
-      const applications =
-        await applicationService.findApplicationsById(storageId);
-  
-      if (applications) {
-        return res.send(applications);
-      } else {
-        return next(new ApiError(400, "Cannot get applications"));
-      }
-    } catch (error) {
-      console.log(error);
-      return next(
-        new ApiError(500, "An error occured while sending application")
-      );
-    }
-}
+  const storageId = req.params.storageId;
+  try {
+    const companyService = new CompanyService(MongoDB.client);
+    const applicationService = new ApplicationService(MongoDB.client);
 
+    const applications = await applicationService.findApplicationsById(
+      storageId
+    );
+
+    if (applications) {
+      return res.send(applications);
+    } else {
+      return next(new ApiError(400, "Cannot get applications"));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while sending application")
+    );
+  }
+};

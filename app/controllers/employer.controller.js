@@ -105,8 +105,10 @@ exports.signIn = async (req, res, next) => {
     //Debug
     console.log(`Token: ${token}`);
     const decoded = jwt.verify(token, jwtSecret);
-    console.log(`Decoded: ${decoded}`);
+    console.log(`Decoded: ${decoded["exp"]}`);
     //End Debug
+    //Lưu trữ lại thời gian hết hạn của token đăng nhập
+    const loginExperiedDate = decoded["exp"]; //Giá trị ở dạng second
 
     res.setHeader("Authorization", `Bearer ${token}`);
     return res.send({
@@ -269,7 +271,7 @@ exports.changePassword = async (req, res, next) => {
 };
 
 exports.saveRegistrationToken = async (req, res, next) => {
-  const { fcmToken } = req.body;
+  const { fcmToken, loginExpiresIn } = req.body;
   const { userId } = req.params;
 
   console.log(userId);
@@ -279,6 +281,12 @@ exports.saveRegistrationToken = async (req, res, next) => {
   }
   if (!userId) {
     return next(new ApiError(400, "userId is required"));
+  }
+  if (!loginExpiresIn) {
+    return next(new ApiError(400, "loginExpiresIn is required"));
+  }
+  if (typeof loginExpiresIn !== "number") {
+    return next(new ApiError(400, "loginExpiresIn must be an integer value"));
   }
   if (!ObjectId.isValid(userId)) {
     return next(new ApiError(400, "userId is not valid ObjectId"));
@@ -304,6 +312,23 @@ exports.saveRegistrationToken = async (req, res, next) => {
       fcmToken
     );
 
+    //Kiểm tra xem có thông báo bị hoãn trong JobseekerNotifications không
+    //Nếu có thì gửi lại ngay khi người dùng đăng nhập
+    await firebaseService.sendNotificationAfterLogin(
+      userId,
+      true,
+      "message_notification",
+      fcmToken
+    );
+    //Kiểm tra xem có bất kỳ thông báo hồ sơ ứng viên nào
+    //gửi tới không
+    await firebaseService.sendNotificationAfterLogin(
+      userId,
+      true,
+      "normal_notification",
+      fcmToken
+    );
+
     if (existingToken) {
       return res.send({
         saveSuccess: true,
@@ -315,7 +340,8 @@ exports.saveRegistrationToken = async (req, res, next) => {
     const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
       fcmToken,
       userId,
-      true
+      true,
+      loginExpiresIn
     );
     if (modifiedCount > 0) {
       return res.send({
@@ -333,7 +359,7 @@ exports.saveRegistrationToken = async (req, res, next) => {
 
 exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
   const { userId } = req.params;
-  const { fcmToken, loginState } = req.body;
+  const { fcmToken, loginState, loginExpiresIn } = req.body;
   //Kiểm tra đầu vào
   if (!userId) {
     return next(new ApiError(400, "userId is required"));
@@ -341,12 +367,22 @@ exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
   if (!fcmToken) {
     return next(new ApiError(400, "fcmToken is required"));
   }
-  if (loginState == null) {
-    return next(new ApiError(400, "loginState is required"));
+  // if (loginState == null) {
+  //   return next(new ApiError(400, "loginState is required"));
+  // }
+  if (loginExpiresIn == null) {
+    return next(new ApiError(400, "loginExpiresIn is required"));
   }
-  if (typeof loginState !== "boolean") {
-    return next(new ApiError(400, "loginState must be a boolean value"));
+
+  if (typeof loginExpiresIn !== "number") {
+    return next(new ApiError(400, "loginExpiresIn must be a integer value"));
   }
+
+  // if (typeof loginState !== "boolean") {
+  //   return next(new ApiError(400, "loginState must be a boolean value"));
+  // }
+  //loginExpiresIn là kiểu số nguyên ở dạng second, chuyển nó thành kiểu Date ISOString
+  const loginExpiredDate = new Date(loginExpiresIn * 1000).toISOString();
   try {
     const firebaseService = new FirebaseService(MongoDB.client);
     const existingToken = await firebaseService.checkRegistrationToken(
@@ -361,7 +397,8 @@ exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
     const result = await firebaseService.updateLoginStateOfRegistrationToken(
       fcmToken,
       userId,
-      loginState,
+      // loginState,
+      loginExpiredDate,
       true
     );
     if (result > 0) {

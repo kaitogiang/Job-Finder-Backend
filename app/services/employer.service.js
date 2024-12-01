@@ -8,7 +8,8 @@ class EmployerService {
     this.employers = client.db().collection("employers");
     this.companies = client.db().collection("companies");
     this.avatars = client.db().collection("avatars");
-    this.lockedUsers = client.db().collection("locked_users");
+    // this.lockedUsers = client.db().collection("locked_users");
+    this.lockedEmployers = client.db().collection("locked_employers");
   }
 
   //Hàm trích xuất dữ liệu của Company
@@ -367,18 +368,18 @@ class EmployerService {
   }
 
   async findAllLocked() {
-    return await this.lockedUsers.find({}).toArray();
+    return await this.lockedEmployers.find({}).toArray();
   }
 
   async checkLockedEmployer(userId) {
-    const result = await this.lockedUsers.findOne({
+    const result = await this.lockedEmployers.findOne({
       userId: ObjectId.createFromHexString(userId),
     });
     return result ? true : false;
   }
 
   async findLockedEmployerById(userId) {
-    const result = await this.lockedUsers.findOne({
+    const result = await this.lockedEmployers.findOne({
       userId: ObjectId.createFromHexString(userId),
     });
     return result;
@@ -386,7 +387,7 @@ class EmployerService {
 
   async lockAccount(payload) {
     const lockedEmployer = this.extractLockedEmployerData(payload);
-    const result = await this.lockedUsers.insertOne(lockedEmployer);
+    const result = await this.lockedEmployers.insertOne(lockedEmployer);
     return {
       _id: result.insertedId,
       ...lockedEmployer,
@@ -394,7 +395,7 @@ class EmployerService {
   }
 
   async unlockAccount(userId) {
-    const result = await this.lockedUsers.deleteOne({
+    const result = await this.lockedEmployers.deleteOne({
       userId: ObjectId.createFromHexString(userId),
     });
     return result.deletedCount > 0;

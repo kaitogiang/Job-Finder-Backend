@@ -272,14 +272,14 @@ exports.uploadPdf = async (req, res, next) => {
 
 exports.removePdf = async (req, res, next) => {
   const userId = req.params.userId;
-
+  const index = req.params.index;
   try {
     const jobseekerService = new JobseekerService(MongoDB.client);
     const user = await jobseekerService.findById(userId);
     if (!user) {
       return next(new ApiError(404, "User not found"));
     }
-    const pdf = await jobseekerService.removePdf(userId);
+    const pdf = await jobseekerService.removePdf(userId,index);
     if (!pdf) {
       return next(new ApiError(404, "Pdf not found"));
     } else {
@@ -683,7 +683,7 @@ exports.changePassword = async (req, res, next) => {
 // }
 
 exports.saveRegistrationToken = async (req, res, next) => {
-  const { fcmToken } = req.body;
+  const { fcmToken, loginExpiresIn } = req.body;
   const { userId } = req.params;
   //Kiểm tra đầu vào
   if (!fcmToken) {
@@ -691,6 +691,12 @@ exports.saveRegistrationToken = async (req, res, next) => {
   }
   if (!userId) {
     return next(new ApiError(400, "userId is required"));
+  }
+  if (!loginExpiresIn) {
+    return next(new ApiError(400, "loginExpiresIn is required"));
+  }
+  if (typeof loginExpiresIn !== "number") {
+    return next(new ApiError(400, "loginExpiresIn must be an integer value"));
   }
   if (!ObjectId.isValid(userId)) {
     return next(new ApiError(400, "userId is not valid ObjectId"));
@@ -716,6 +722,24 @@ exports.saveRegistrationToken = async (req, res, next) => {
       fcmToken
     );
 
+    //Kiểm tra xem có thông báo bị hoãn trong JobseekerNotifications không
+    //Nếu có thì gửi lại ngay khi người dùng đăng nhập
+    await firebaseService.sendNotificationAfterLogin(
+      userId,
+      false,
+      "message_notification",
+      fcmToken
+    );
+
+    //Kiểm tra xem có bất kỳ thông báo kết quả nào được gửi đến không
+    await firebaseService.sendNotificationAfterLogin(
+      userId,
+      false,
+      "normal_notification",
+      fcmToken
+    );
+
+    //Tiến hành lưu vào FCmToken nếu token chưa được lưu
     if (existingToken) {
       return res.send({
         saveSuccess: true,
@@ -727,7 +751,8 @@ exports.saveRegistrationToken = async (req, res, next) => {
     const modifiedCount = await firebaseService.saveRegistrationTokenToDB(
       fcmToken,
       userId,
-      false
+      false,
+      loginExpiresIn
     );
     if (modifiedCount > 0) {
       return res.send({
@@ -748,7 +773,7 @@ exports.saveRegistrationToken = async (req, res, next) => {
 
 exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
   const { userId } = req.params;
-  const { fcmToken, loginState } = req.body;
+  const { fcmToken, loginState, loginExpiresIn } = req.body;
   //Kiểm tra đầu vào
   if (!userId) {
     return next(new ApiError(400, "userId is required"));
@@ -756,12 +781,22 @@ exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
   if (!fcmToken) {
     return next(new ApiError(400, "fcmToken is required"));
   }
-  if (loginState == null) {
-    return next(new ApiError(400, "loginState is required"));
+  // if (loginState == null) {
+  //   return next(new ApiError(400, "loginState is required"));
+  // }
+  if (loginExpiresIn == null) {
+    return next(new ApiError(400, "loginExpiresIn is required"));
   }
-  if (typeof loginState !== "boolean") {
-    return next(new ApiError(400, "loginState must be a boolean value"));
+
+  if (typeof loginExpiresIn !== "number") {
+    return next(new ApiError(400, "loginExpiresIn must be a integer value"));
   }
+  // if (typeof loginState !== "boolean") {
+  //   return next(new ApiError(400, "loginState must be a boolean value"));
+  // }
+  //Chuyển đổi kiểu giâ giây sang kiểu Date
+  //loginExpiresIn là kiểu số nguyên ở dạng second, chuyển nó thành kiểu Date ISOString
+  const loginExpiredDate = new Date(loginExpiresIn * 1000).toISOString();
   try {
     const firebaseService = new FirebaseService(MongoDB.client);
     const existingToken = await firebaseService.checkRegistrationToken(
@@ -776,7 +811,8 @@ exports.updateLoginStateOfRegistrationToken = async (req, res, next) => {
     const result = await firebaseService.updateLoginStateOfRegistrationToken(
       fcmToken,
       userId,
-      loginState,
+      // loginState,
+      loginExpiredDate,
       false
     );
     if (result > 0) {

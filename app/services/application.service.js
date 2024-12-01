@@ -25,13 +25,13 @@ class ApplicationService {
     return applicationStorage;
   }
 
-  async applyApplication(post, jobseeker) {
+  async applyApplication(post, jobseeker, resumeLink) {
     //! _id của post đã là đối tượng ObjectId rồi
     const filter = {
       jobId: post._id,
     };
 
-    const resumeLink = jobseeker.resume[0]["url"];
+    // const resumeLink = jobseeker.resume[0]["url"];
 
     const now = new Date();
 
