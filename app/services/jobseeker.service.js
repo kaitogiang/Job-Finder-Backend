@@ -298,7 +298,7 @@ class JobseekerService {
     const result = await this.jobseekers.findOneAndUpdate(
       filter,
       // { $set: { resume: [cv] } },
-      {$push: {resume: cv}},
+      { $push: { resume: cv } },
       { returnDocument: ReturnDocument.AFTER }
     );
     return result["resume"];
@@ -312,13 +312,13 @@ class JobseekerService {
     unsetObject[`resume.${index}`] = 1;
 
     //Loại bỏ một đối tượng ra khỏi mảng resume
-    await this.jobseekers.updateOne(filter, {$unset: unsetObject}); //Đối tượng tại index sẽ bị null
+    await this.jobseekers.updateOne(filter, { $unset: unsetObject }); //Đối tượng tại index sẽ bị null
 
     const result = await this.jobseekers.findOneAndUpdate(
       filter,
       // { $set: { resume: [] } },
       {
-        $pull: {resume: null}, //Gọi pull để loại bỏ các giá trị null
+        $pull: { resume: null }, //Gọi pull để loại bỏ các giá trị null
       },
       { returnDocument: ReturnDocument.AFTER }
     );

@@ -477,6 +477,33 @@ exports.checkLockedEmployer = async (req, res, next) => {
     );
   }
 };
+//Hàm kiểm tra trạng thái tài khoản thông qua email
+exports.checkLockedEmployerByEmail = async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new ApiError(400, "email is required"));
+  }
+  try {
+    //Khởi tạo các dịch vụ
+    const employerService = new EmployerService(MongoDB.client);
+    //Tìm kiếm nhà tuyển dụng xem có tồn tại hay không
+    const employer = await employerService.findByEmail(email);
+    //Nếu nhà tuyển dụng không tồn tại thì báo lỗi phía client
+    if (!employer) {
+      return next(new ApiError(400, "Employer is not found"));
+    }
+    //Lấy id của nhà tuyển dụng để kiểm tra trạng thái
+    //Chuyển về chuỗi tại vì khi truy vấn _id là kiểu ObjectID
+    const userId = employer._id.toString();
+    const isLocked = await employerService.checkLockedEmployer(userId);
+    return res.send({ isLocked });
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while checking locked employer")
+    );
+  }
+};
 
 exports.findLockedEmployerById = async (req, res, next) => {
   const { userId } = req.params;

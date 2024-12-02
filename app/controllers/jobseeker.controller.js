@@ -279,7 +279,7 @@ exports.removePdf = async (req, res, next) => {
     if (!user) {
       return next(new ApiError(404, "User not found"));
     }
-    const pdf = await jobseekerService.removePdf(userId,index);
+    const pdf = await jobseekerService.removePdf(userId, index);
     if (!pdf) {
       return next(new ApiError(404, "Pdf not found"));
     } else {
@@ -949,6 +949,34 @@ exports.checkLockedJobseeker = async (req, res, next) => {
   }
   try {
     const jobseekerService = new JobseekerService(MongoDB.client);
+    const isLocked = await jobseekerService.checkLockedJobseeker(userId);
+    return res.send({ isLocked });
+  } catch (error) {
+    console.log(error);
+    return next(
+      new ApiError(500, "An error occured while checking locked jobseeker")
+    );
+  }
+};
+
+//Hàm kiểm tra một jobseeker có bị khóa không thông qua email
+exports.checkLockedJobseekerByEmail = async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new ApiError(400, "email is required"));
+  }
+  try {
+    //Khởi tạo các dịch vụ
+    const jobseekerService = new JobseekerService(MongoDB.client);
+    //Kiểm tra xem ứng viên này có tồn tại hay không?
+    const jobseeker = await jobseekerService.findByEmail(email);
+    //Nếu ứng viên không tồn tại thì báo lỗi lại cho client
+    if (!jobseeker) {
+      return next(new ApiError(400, "Jobseeer is not found"));
+    }
+    //Nếu tồn tại thì lấy id của ứng viên để kiểm tra tình trạng tài khoản
+    //Chuyển về chuỗi tại vì khi truy vấn _id là kiểu ObjectID
+    const userId = jobseeker._id.toString();
     const isLocked = await jobseekerService.checkLockedJobseeker(userId);
     return res.send({ isLocked });
   } catch (error) {
