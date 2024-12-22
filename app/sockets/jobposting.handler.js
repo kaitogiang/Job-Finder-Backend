@@ -43,4 +43,13 @@ const jobpostingHandler = (io) => {
   createChangeStream();
 };
 
-module.exports = { jobpostingHandler };
+const jobpostingUpdateHandler = (io, socket) => {
+  //Lắng nghe sự kiện update jobposting mà client emit
+  socket.on("updateJobposting", () => {
+    //Khi nhận event này thì broadcase đến tất cả các người dùng khác
+    //Chỉ báo hiệu cho frontend nạp lại dữ liệu
+    io.emit("receiveUpdatedJobposting");
+  });
+}
+
+module.exports = { jobpostingHandler, jobpostingUpdateHandler };

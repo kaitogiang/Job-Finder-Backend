@@ -4,6 +4,7 @@ class JobpostingService {
   constructor(client) {
     this.jobpostings = client.db().collection("jobpostings");
     this.favoritePosts = client.db().collection("favorite_posts");
+    this.applicationStorage = client.db().collection("application_storage");
   }
   //Hàm trích xuất dữ liệu của Jobposting
   extractJobpostingData(payload) {
@@ -48,7 +49,24 @@ class JobpostingService {
   }
 
   //todo hàm xóa bài viết
+  //Chỉnh sửa lại ràng buộc, khi xóa bài đăng thì xóa luôn ApplicationStorage của bài đăng đó và id trong FavoriteJobposting
   async deleteJobposting(id) {
+    //Xóa các ràng buộc trước khi xóa jobposting
+    //Xóa ApplicationStorage của bài đăng này nếu có
+    await this.applicationStorage.deleteOne({
+      jobId: ObjectId.createFromHexString(id),
+    });
+    //Xóa chuỗi id của Jobposting trong FavoritePost nếu có
+    await this.favoritePosts.updateMany(
+      {
+        posts: id,
+      },
+      {
+        $pull: {
+          posts: id,
+        },
+      }
+    );
     return await this.jobpostings.deleteOne({
       _id: ObjectId.createFromHexString(id),
     });
@@ -253,6 +271,11 @@ class JobpostingService {
               policy: 1,
               avatar: "$company.avatar.avatarLink",
             },
+          },
+        },
+        {
+          $sort: {
+            createdAt: -1,
           },
         },
       ])
@@ -495,8 +518,6 @@ class JobpostingService {
     }
     return jobpostingFavoriteCountList;
   }
-
-  
 }
 
 module.exports = JobpostingService;

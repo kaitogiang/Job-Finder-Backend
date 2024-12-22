@@ -2,10 +2,15 @@ const { Server } = require("socket.io");
 const { isValidToken } = require("../utils/socket-method.util");
 const connectionHandler = require("./connection.handler");
 const disconnectHandler = require("./disconnect.handler");
-const { jobpostingHandler } = require("./jobposting.handler");
+const {
+  jobpostingHandler,
+  jobpostingUpdateHandler,
+} = require("./jobposting.handler");
 const { messageHandler } = require("./message.handler");
 const { behaviourHandler } = require("./behaviour.handler");
 const { jobSuggestionHandler } = require("./job.suggestion.handler");
+const { applicationHandler } = require("./application.handler");
+const {companyHandler} = require("./company.handler");
 const jwt = require("jsonwebtoken");
 const activeUsers = [];
 
@@ -57,10 +62,20 @@ const setupSocket = (httpServer) => {
 
     //Hàm lắng nghe sự kiện gợi ý công việc
     // jobSuggestionHandler(io, socket);
+
+    //Lắng nghe sự kiện cập nhật ApplicationStorage
+    applicationHandler(io, socket);
+
+    //Lắng nghe sự kiện cập nhật jobposting và emit sự kiện báo hiệu
+    //cho client cập nhật lại dữ liệu
+    jobpostingUpdateHandler(io, socket);
+
+    //Lắng nghe sự kiện cập nhật company
+    companyHandler(io, socket);
   });
 
-  //Mongodb change Stream setup
-  jobpostingHandler(io);
+  // //Mongodb change Stream setup
+  // jobpostingHandler(io);
 
   return io;
 };
